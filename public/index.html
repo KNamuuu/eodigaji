@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>어디가지</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 480px; background: #fff; color: #222; }
+  h1 { margin: 0; font-size: 26px; }
+  .screen[hidden], [hidden] { display: none !important; }
+  .tabs { display: flex; gap: 8px; margin: 10px 0; }
+  .tabs button { flex: 1; margin: 0; padding: 10px; font-size: 16px; background: #eee; color: #222; }
+  .tabs button.active { background: #222; color: #fff; }
+  #map { width: 100%; display: block; background: #e8f3fb; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #map path { fill: #fff; stroke: #b9c7d3; stroke-width: .5; transition: fill .9s ease-out; }
+  #map path.flash { fill: #ffb199; transition: none; }
+  #map path.picked { fill: #ff5a36; transition: none; }
+  #map .label { font-size: 15px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 4px; pointer-events: none; }
+  #map .zone { fill: #d5e6f2; }
+  #map .dartLayer { pointer-events: none; }
+  .stage { position: relative; }
+  #status { position: absolute; top: 10px; left: 12px; max-width: 50%; font-size: 20px; font-weight: 700; pointer-events: none; }
+  #status small { display: block; font-size: 14px; font-weight: 400; color: #777; }
+  button { width: 100%; padding: 14px; font-size: 17px; border-radius: 12px; border: 0; background: #ff5a36; color: #fff; margin-top: 8px; }
+  button.sub { background: #eee; color: #222; }
+  button:disabled { opacity: .5; }
+  .title { width: 100%; font-size: 22px; font-weight: 700; border: 0; border-bottom: 2px dashed #ddd; padding: 4px 0; box-sizing: border-box; }
+  .note { font-size: 13px; color: #888; margin: 4px 0 0; }
+  .row { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
+  .row input { font-size: 16px; border: 1px solid transparent; border-radius: 6px; padding: 6px; min-width: 0; }
+  .row input:focus { border-color: #ff5a36; outline: none; }
+  .row input.time { width: 62px; text-align: center; flex: none; color: #ff5a36; font-weight: 700; background: #fff4f0; }
+  .row input.what { flex: 1; }
+  .row button { width: 36px; flex: none; margin: 0; padding: 6px; background: none; color: #bbb; font-size: 18px; }
+  button.add { background: none; color: #ff5a36; border: 1px dashed #ffb199; padding: 8px; font-size: 15px; }
+  .tip { background: #fff4e5; padding: 12px; border-radius: 8px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<section id="home" class="screen">
+  <h1>어디가지 🎯</h1>
+  <div class="tabs">
+    <button data-mode="roulette" class="active">🎡 지도 룰렛</button>
+    <button data-mode="dart">🎯 다트</button>
+  </div>
+  <div class="stage">
+  <svg id="map" viewBox="0 0 400 672">
+    <g id="regions"></g>
+    <rect id="inset" fill="none" stroke="#b9c7d3" stroke-dasharray="3 3"/><g id="dokdo"></g>
+    <rect id="zone" class="zone" x="0" width="400" height="74" rx="12"/>
+    <g id="labels"></g>
+    <g class="dartLayer">
+      <line id="aim" stroke="#ff5a36" stroke-width="2" stroke-dasharray="6 5" hidden/>
+      <ellipse id="shadow" rx="6" ry="3" fill="#000" opacity="0"/>
+      <g id="dart">
+        <path d="M0-24 L2-14 L-2-14Z" fill="#555"/>
+        <rect x="-2.5" y="-14" width="5" height="26" rx="2" fill="#ff5a36"/>
+        <path d="M0 6 L-9 20 L0 16 L9 20Z" fill="#2c7be5"/>
+      </g>
+    </g>
+  </svg>
+  <div id="status"></div>
+  </div>
+  <button id="go" hidden>여기로 1박 2일 일정 짜줘 →</button>
+  <button id="spin">룰렛 돌리기</button>
+</section>
+
+<section id="plan" class="screen" hidden>
+  <input id="planTitle" class="title" aria-label="여행 제목">
+  <p class="note" id="planNote"></p>
+  <div id="planBody">일정 짜는 중…</div>
+  <button id="invite" hidden>👥 친구 초대해서 같이 고치기</button>
+  <button id="back" class="sub">다시 뽑기</button>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const svg = $("map");
+let MAP_H = 592, regions = [], paths = [], picked = null, mode = "roulette", busy = false;
+
+fetch("regions.json").then((r) => r.json()).then((data) => {
+  regions = data.regions;
+  MAP_H = data.h; REST.y = MAP_H + 30;
+  $("zone").setAttribute("y", MAP_H + 6);
+  for (const k of ["x", "y", "width", "height"]) $("inset").setAttribute(k, data.inset[k[0]]);
+  const [dx, dy] = data.inset.dokdo;
+  $("dokdo").innerHTML = `<circle cx="${dx}" cy="${dy}" r="2" fill="#8aa0b2"/><text x="${dx}" y="${dy + 12}" font-size="8" text-anchor="middle" fill="#8aa0b2">독도</text>`;
+  $("regions").innerHTML = regions.map((r) => `<path d="${r.d}"/>`).join("");
+  paths = [...$("regions").children];
+  setMode("roulette");
+});
+
+function show(id) { document.querySelectorAll(".screen").forEach((s) => (s.hidden = s.id !== id)); }
+function status(main, sub = "") { $("status").innerHTML = `${esc(main)}<small>${esc(sub)}</small>`; }
+
+function clearPick() {
+  paths.forEach((p) => p.classList.remove("picked"));
+  $("labels").innerHTML = "";
+  $("go").hidden = true;
+  picked = null;
+  $("spin").classList.remove("sub");
+}
+function choose(r) {
+  picked = r;
+  paths[r.id].classList.add("picked");
+  $("labels").innerHTML = `<text class="label" x="${r.cx}" y="${r.cy - 8}">${esc(r.name)}</text>`;
+  status(`🎉 ${r.name}`, `${r.prov} · 여기로 결정!`);
+  $("go").hidden = false;
+  $("spin").classList.add("sub");
+  $("go").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => !busy && setMode(b.dataset.mode)));
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.mode === m));
+  clearPick();
+  $("spin").hidden = m !== "roulette";
+  svg.setAttribute("viewBox", `0 0 400 ${m === "dart" ? MAP_H + 80 : MAP_H}`); // 던지는 자리는 다트 모드에만
+  resetDart();
+  if (m === "roulette") status("어디로 갈까?", "버튼을 누르면 지도에 불이 들어와요");
+  else newWind();
+}
+
+// ── 지도 룰렛: 빠르게 깜빡이다 점점 느려지며 멈춤 ──
+$("spin").onclick = () => {
+  busy = true; $("spin").disabled = true; clearPick();
+  let delay = 30, last = -1;
+  const step = () => {
+    let i;
+    do i = Math.floor(Math.random() * regions.length); while (i === last);
+    last = i;
+    const p = paths[i];
+    p.classList.add("flash");
+    requestAnimationFrame(() => requestAnimationFrame(() => p.classList.remove("flash"))); // 바로 꺼지며 fade out
+    status(regions[i].name, regions[i].prov);
+    delay *= 1.09;
+    if (delay < 500) return setTimeout(step, delay);
+    setTimeout(() => {
+      choose(regions[i]);
+      busy = false; $("spin").disabled = false; $("spin").textContent = "다시 돌리기";
+    }, 350);
+  };
+  step();
+};
+
+// ── 다트: 아래로 끌었다 놓으면 날아감. 지도는 바닥에 깔린 판이라고 보고 높이(z)·중력·바람 시뮬레이션 ──
+const REST = { x: 200, y: 636 }, MAX_PULL = 130, G = 1600;
+let aim = null, wind = { x: 0, y: 0 };
+
+function toSvg(e) {
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function drawDart(x, y, z = 0, angle = 0, scale = 1) {
+  $("dart").setAttribute("transform", `translate(${x} ${y - z * 0.35}) rotate(${angle}) scale(${scale * (1 + z / 450)})`);
+  $("shadow").setAttribute("cx", x); $("shadow").setAttribute("cy", y);
+  $("shadow").setAttribute("rx", 5 + z / 25);
+  $("shadow").setAttribute("opacity", z > 0 ? Math.max(0.08, 0.3 - z / 1500) : 0);
+}
+function resetDart() {
+  $("dart").style.display = mode === "dart" ? "" : "none";
+  $("aim").setAttribute("hidden", "");
+  drawDart(REST.x, REST.y);
+}
+function newWind() {
+  const a = Math.random() * Math.PI * 2, s = Math.random() * 3; // m/s
+  wind = { x: Math.cos(a) * s * 45, y: Math.sin(a) * s * 45 };
+  const arrow = "→↘↓↙←↖↑↗"[Math.round(a / (Math.PI / 4)) % 8];
+  status("지도 아무 데나 누르고 아래로 당겼다 놓아요", `🌬️ 바람 ${arrow} ${s.toFixed(1)}m/s · 세게 당길수록 멀리`);
+}
+
+svg.addEventListener("pointerdown", (e) => {
+  if (mode !== "dart" || busy) return;
+  const p = toSvg(e);
+  aim = { x: 0, y: 0, sx: p.x, sy: p.y }; // 지도 아무 데서나 잡고, 누른 점 기준으로 당긴 만큼이 힘
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener("pointermove", (e) => {
+  if (!aim) return;
+  const p = toSvg(e);
+  let dx = p.x - aim.sx, dy = p.y - aim.sy;
+  const len = Math.hypot(dx, dy);
+  if (len > MAX_PULL) { dx *= MAX_PULL / len; dy *= MAX_PULL / len; }
+  aim = { ...aim, x: dx, y: dy };
+  const ang = Math.atan2(-dy, -dx) * 180 / Math.PI + 90;
+  drawDart(REST.x + dx * 0.25, REST.y + dy * 0.25, 0, ang); // 다트는 조금만 끌려와 화면 안에 머묾
+  const l = $("aim");
+  l.removeAttribute("hidden"); // SVG 요소는 .hidden 속성이 없음
+  l.setAttribute("x1", REST.x + dx * 0.25); l.setAttribute("y1", REST.y + dy * 0.25);
+  l.setAttribute("x2", REST.x - dx * 1.5); l.setAttribute("y2", REST.y - dy * 1.5);
+  status(`힘 ${Math.round((Math.hypot(dx, dy) / MAX_PULL) * 100)}%`, "놓으면 날아가요");
+});
+svg.addEventListener("pointerup", () => {
+  if (!aim) return;
+  const pull = aim; aim = null;
+  $("aim").setAttribute("hidden", "");
+  const power = Math.hypot(pull.x, pull.y) / MAX_PULL;
+  if (power < 0.15) { resetDart(); newWind(); return; }
+  throwDart(REST.x + pull.x * 0.25, REST.y + pull.y * 0.25, Math.atan2(-pull.y, -pull.x), power);
+});
+
+function throwDart(x, y, dir, power) {
+  busy = true; clearPick();
+  dir += (Math.random() - 0.5) * 0.14 * power; // 세게 던질수록 손이 떨림
+  const speed = 120 + 620 * power; // 최대 힘 ≈ 지도 맨 위
+  let vx = Math.cos(dir) * speed, vy = Math.sin(dir) * speed, vz = 450 + 250 * power, z = 0;
+  let t0 = performance.now();
+  const frame = (now) => {
+    const dt = Math.min(0.033, Math.max(0, now - t0) / 1000); t0 = now; // rAF 시각이 던진 시각보다 앞설 수 있음
+    vx += wind.x * dt; vy += wind.y * dt;
+    vx *= 1 - 0.12 * dt; vy *= 1 - 0.12 * dt; // 공기저항
+    vz -= G * dt;
+    x += vx * dt; y += vy * dt; z += vz * dt;
+    const ang = Math.atan2(vy, vx) * 180 / Math.PI + 90;
+    if (z > 0 || vz > 0) { drawDart(x, y, z, ang); return requestAnimationFrame(frame); }
+    land(x, y, ang);
+  };
+  requestAnimationFrame(frame);
+}
+
+function land(x, y, ang) {
+  // 꽂힌 뒤 감쇠 진동으로 부르르
+  const start = performance.now();
+  const wobble = (now) => {
+    const t = (now - start) / 1000;
+    drawDart(x, y, 0, ang + 14 * Math.exp(-7 * t) * Math.sin(40 * t), 0.8);
+    if (t < 0.7) requestAnimationFrame(wobble);
+  };
+  requestAnimationFrame(wobble);
+  const pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
+  const i = y < MAP_H ? paths.findIndex((p) => p.isPointInFill(pt)) : -1;
+  busy = false;
+  if (i >= 0) choose(regions[i]);
+  else setTimeout(() => { status("🌊 풍덩! 바다에 빠졌어요", "다시 던져보세요"); setTimeout(() => { resetDart(); newWind(); }, 1200); }, 300);
+}
+
+// ── 일정: 수정 가능, 브라우저에 저장 ──
+let plan, planKey;
+
+function samplePlan(place) {
+  return {
+    title: `${place} 1박 2일`,
+    days: [
+      { day: "1일차", items: [
+        { time: "10:00", what: `${place} 도착, 시내 산책` },
+        { time: "12:30", what: "현지 맛집에서 점심" },
+        { time: "15:00", what: "대표 명소 구경" },
+        { time: "18:30", what: "저녁 먹고 숙소 체크인" },
+      ] },
+      { day: "2일차", items: [
+        { time: "09:00", what: "숙소 근처 카페에서 아침" },
+        { time: "11:00", what: "근교 자연 명소" },
+        { time: "13:00", what: "점심 후 기념품 쇼핑" },
+        { time: "16:00", what: "귀가" },
+      ] },
+    ],
+    tip: "AI 연결 전이라 샘플 일정이에요. 자유롭게 고쳐 쓰세요.",
+    sample: true,
+  };
+}
+
+$("go").onclick = async () => {
+  show("plan");
+  const place = picked.name;
+  planKey = "eodigaji:plan:" + picked.prov + place;
+  disconnect();
+  $("planTitle").value = place;
+  $("planNote").textContent = "";
+  $("planBody").textContent = "일정 짜는 중…";
+  try { plan = JSON.parse(localStorage.getItem(planKey)); } catch {}
+  if (!plan) {
+    try {
+      const r = await fetch("api/plan?place=" + encodeURIComponent(`${picked.prov} ${place}`));
+      if (!r.ok) throw r;
+      plan = await r.json();
+    } catch { plan = samplePlan(place); }
+  }
+  Object.assign(plan, { prov: picked.prov, place });
+  if (plan.id && window.supabase) {           // 공유한 일정이면 최신본으로
+    connect(plan.id);
+    try { await loadShared(plan.id); savePlan(); } catch {}
+  }
+  renderPlan();
+};
+
+function savePlan() { try { localStorage.setItem(planKey, JSON.stringify(plan)); } catch {} }
+
+function renderPlan() {
+  $("planTitle").value = plan.title;
+  $("planNote").textContent = (plan.id ? "👥 같이 고치는 중 · " : plan.sample ? "샘플 일정 · " : "") + "눌러서 바로 고칠 수 있어요";
+  $("invite").hidden = !window.supabase;
+  $("invite").textContent = plan.id ? "👥 초대 링크 다시 보내기" : "👥 친구 초대해서 같이 고치기";
+  $("planBody").innerHTML = plan.days.map((d, di) => `<h3>${esc(d.day)}</h3>` +
+    d.items.map((it, i) => `<div class="row">
+      <input class="time" inputmode="numeric" maxlength="5" placeholder="00:00" value="${esc(it.time)}" data-d="${di}" data-i="${i}" data-k="time" aria-label="시간">
+      <input class="what" value="${esc(it.what)}" data-d="${di}" data-i="${i}" data-k="what" placeholder="할 일" aria-label="할 일">
+      <button data-del="${di},${i}" aria-label="삭제">✕</button></div>`).join("") +
+    `<button class="add" data-add="${di}">+ 일정 추가</button>`
+  ).join("") + `<p class="tip">💡 ${esc(plan.tip)}</p>`;
+}
+
+$("planTitle").oninput = (e) => { plan.title = e.target.value; titleDirty = true; savePlan(); queueFlush(); };
+$("planBody").addEventListener("input", (e) => {
+  const { d, i, k } = e.target.dataset;
+  if (!k) return;
+  plan.days[d].items[i][k] = e.target.value;
+  dirty.add(plan.days[d].items[i]);
+  savePlan(); queueFlush();
+});
+$("planBody").addEventListener("change", (e) => {
+  if (!e.target.classList.contains("time")) return;
+  plan.days[e.target.dataset.d].items.sort(byTime);
+  savePlan(); renderPlan();
+});
+$("planBody").addEventListener("click", (e) => {
+  const del = e.target.dataset.del, add = e.target.dataset.add;
+  if (del) {
+    const [d, i] = del.split(","), [it] = plan.days[d].items.splice(i, 1);
+    dirty.delete(it);
+    if (plan.id) db.from("items").delete().eq("id", it.id).then(synced);
+  } else if (add) {
+    const it = { id: uuid(), time: "", what: "" };
+    plan.days[add].items.push(it);
+    dirty.add(it); queueFlush();
+  } else return;
+  savePlan(); renderPlan();
+  if (add) $("planBody").querySelectorAll(`.what[data-d="${add}"]`).item(plan.days[add].items.length - 1)?.focus();
+});
+
+$("back").onclick = () => { disconnect(); history.replaceState(null, "", location.pathname); plan = null; show("home"); };
+
+// ── 같이 고치기: 링크(plan id)를 아는 사람끼리 Supabase로 공유 ──
+// DB 규칙(RLS): x-plan-id 헤더로 보낸 id의 일정만 읽고 쓸 수 있다 → supabase/schema.sql
+// 변경이 생기면 broadcast로 "바뀜"만 알리고, 받은 쪽이 다시 불러온다.
+// ponytail: 입력칸에 커서가 있는 동안엔 남의 변경을 미뤘다가 포커스가 빠지면 반영. 글자 단위 동시 편집이 필요해지면 CRDT로.
+const SB_URL = "https://ltbhffozitpbsxjbnbnd.supabase.co", SB_KEY = "sb_publishable_A-x6BFiK_x60Z_KrZWVMAw_X9XKVjxN";
+let db, chan, dirty = new Set(), titleDirty = false, flushTimer, stale = false;
+const byTime = (a, b) => (a.time || "99").localeCompare(b.time || "99");
+const hex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
+const uuid = () => hex(16).replace(/(.{8})(.{4})(.{4})(.{4})/, "$1-$2-$3-$4-");
+
+function connect(id) {
+  disconnect();
+  db = supabase.createClient(SB_URL, SB_KEY, { global: { headers: { "x-plan-id": id } }, auth: { persistSession: false } });
+  chan = db.channel("plan-" + id).on("broadcast", { event: "changed" }, () => { stale = true; refresh(); }).subscribe();
+}
+function disconnect() { clearTimeout(flushTimer); db?.removeAllChannels(); db = chan = null; dirty.clear(); titleDirty = stale = false; }
+
+async function loadShared(id) {
+  const [p, it] = await Promise.all([db.from("plans").select().eq("id", id).maybeSingle(), db.from("items").select().eq("plan_id", id)]);
+  if (p.error || it.error || !p.data) throw p.error || it.error || new Error("없는 일정");
+  const n = Math.max(2, ...it.data.map((i) => i.day + 1));
+  plan = { id, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip,
+    days: Array.from({ length: n }, (_, d) => ({ day: `${d + 1}일차`,
+      items: it.data.filter((i) => i.day === d).map(({ id, time, what }) => ({ id, time, what })).sort(byTime) })) };
+  stale = false;
+}
+
+async function refresh() {
+  const el = document.activeElement;
+  if (!plan?.id || dirty.size || titleDirty || (el?.tagName === "INPUT" && $("plan").contains(el))) return;
+  try { await loadShared(plan.id); savePlan(); renderPlan(); } catch {}
+}
+$("plan").addEventListener("focusout", () => setTimeout(() => stale && refresh()));
+
+const itemRow = (it) => ({ id: it.id, plan_id: plan.id, day: plan.days.findIndex((d) => d.items.includes(it)), time: it.time, what: it.what });
+function synced({ error }) {
+  if (error) return ($("planNote").textContent = "⚠️ 저장 실패: " + error.message);
+  chan?.send({ type: "broadcast", event: "changed", payload: {} });
+}
+function queueFlush() { if (plan.id) { clearTimeout(flushTimer); flushTimer = setTimeout(flush, 400); } }
+async function flush() {
+  const rows = [...dirty].map(itemRow).filter((r) => r.day >= 0);
+  dirty.clear();
+  if (titleDirty) { titleDirty = false; synced(await db.from("plans").update({ title: plan.title }).eq("id", plan.id)); }
+  if (rows.length) synced(await db.from("items").upsert(rows));
+  if (stale) refresh();
+}
+
+$("invite").onclick = async () => {
+  if (!plan.id) {
+    const id = hex(16);
+    plan.days.forEach((d) => d.items.forEach((it) => (it.id ??= uuid())));
+    connect(id);
+    const r = await db.from("plans").insert({ id, prov: plan.prov, place: plan.place, title: plan.title, tip: plan.tip });
+    plan.id = id;
+    const r2 = r.error ? r : await db.from("items").insert(plan.days.flatMap((d) => d.items.map(itemRow)));
+    if (r2.error) { plan.id = undefined; disconnect(); return ($("planNote").textContent = "⚠️ 공유 실패: " + r2.error.message); }
+    savePlan(); renderPlan();
+  }
+  const url = location.origin + location.pathname + "?plan=" + plan.id;
+  history.replaceState(null, "", url);
+  if (navigator.share) return navigator.share({ title: plan.title, text: "같이 여행 일정 고치자!", url }).catch(() => {});
+  try { await navigator.clipboard.writeText(url); $("planNote").textContent = "🔗 링크 복사됨 · 친구에게 보내세요"; }
+  catch { prompt("이 링크를 친구에게 보내세요", url); }
+};
+
+const linkId = new URLSearchParams(location.search).get("plan");
+if (linkId && window.supabase) (async () => {
+  show("plan");
+  $("planBody").textContent = "일정 불러오는 중…";
+  connect(linkId);
+  try { await loadShared(linkId); planKey = "eodigaji:plan:" + plan.prov + plan.place; savePlan(); renderPlan(); }
+  catch { $("planBody").textContent = "일정을 찾을 수 없어요. 링크를 다시 확인해 주세요."; }
+})();
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+</script>
+</body>
+</html>
