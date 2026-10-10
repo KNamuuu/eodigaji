@@ -4,73 +4,163 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>어디가지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-  body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 480px; background: #fff; color: #222; }
-  h1 { margin: 0; font-size: 26px; }
+  /* Hallmark · genre: playful · macrostructure: Workbench (지도가 곧 도구) · theme: Hum
+   * tone: playful · anchor hue: pear 95 + cyan 235 + coral 18 · enrichment: none · nav/footer: 없음 (앱 화면)
+   * pre-emit critique: P4 H4 E4 S4 R4 V5
+   */
+  :root {
+    --color-paper: oklch(97% 0.012 95);
+    --color-paper-2: oklch(94% 0.016 95);
+    --color-paper-3: oklch(91% 0.02 95);
+    --color-card: oklch(99.5% 0.004 95);
+    --color-ink: oklch(20% 0.012 250);
+    --color-ink-2: oklch(45% 0.012 250);
+    --color-rule: oklch(90% 0.014 95);
+    --color-accent: oklch(86% 0.18 95);          /* pear · 주요 행동 */
+    --color-accent-deep: oklch(72% 0.16 85);
+    --color-accent-tint: oklch(94% 0.06 95);
+    --color-accent-cast: oklch(76% 0.2 95 / .45);
+    --color-accent-2: oklch(66% 0.18 235);       /* cyan · 바다·다트 깃 */
+    --color-accent-3: oklch(68% 0.24 18);        /* coral · 뽑힌 한 곳 */
+    --color-sea: oklch(93% 0.035 225);
+    --color-sea-line: oklch(80% 0.035 235);
+    --color-zone: oklch(88% 0.045 225);
+    --color-lavender-tint: oklch(95% 0.03 305);
+    --color-focus: oklch(55% 0.18 235);
+    --color-shadow: oklch(20% 0.012 250 / .12);
+    --font-body: "Plus Jakarta Sans", "Pretendard Variable", Pretendard, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 32px;
+    --radius-card: 20px; --radius-input: 12px; --radius-pill: 999px;
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
+    --ease-press: cubic-bezier(.2, .7, .3, 1);
+    --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { overflow-x: clip; }
+  body { font-family: var(--font-body); margin: 0 auto; padding: var(--space-md); max-width: 480px; background: var(--color-paper); color: var(--color-ink); word-break: keep-all; -webkit-font-smoothing: antialiased; }
   .screen[hidden], [hidden] { display: none !important; }
-  .tabs { display: flex; gap: 8px; margin: 10px 0; }
-  .tabs button { flex: 1; margin: 0; padding: 10px; font-size: 16px; background: #eee; color: #222; }
-  .tabs button.active { background: #222; color: #fff; }
-  #map { width: 100%; display: block; background: #e8f3fb; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
-  #map path { fill: #fff; stroke: #b9c7d3; stroke-width: .5; transition: fill .9s ease-out; }
-  #map path.flash { fill: #ffb199; transition: none; }
-  #map path.picked { fill: #ff5a36; transition: none; }
-  #map .label { font-size: 15px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 4px; pointer-events: none; }
-  #map .zone { fill: #d5e6f2; }
-  #map .dartLayer { pointer-events: none; }
+  :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; white-space: nowrap; }
+
+  /* 머리 · 워드마크 + 반응하는 과녁 */
+  header { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-2xs) var(--space-md); }
+  h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.025em; }
+  .mark { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, var(--color-accent-3) 0 30%, var(--color-accent) 32%); box-shadow: 0 2px 0 var(--color-accent-deep); animation: breathe 4s var(--ease-out) infinite; }
+  .mark.hit { animation: hit .5s var(--ease-spring); }
+  @keyframes breathe { 50% { transform: scale(1.08); } }
+  @keyframes hit { 40% { transform: scale(1.5) rotate(20deg); } }
+
+  /* 모드 전환 · 알약 트랙 */
+  .tabs { display: flex; gap: var(--space-2xs); padding: var(--space-2xs); margin-bottom: var(--space-sm); background: var(--color-paper-2); border-radius: var(--radius-pill); }
+  .tabs button { flex: 1; padding: 10px; font-size: 15px; font-weight: 600; color: var(--color-ink-2); border-radius: var(--radius-pill); transition: background-color .16s, color .16s; }
+  .tabs button.active { background: var(--color-card); color: var(--color-ink); box-shadow: 0 2px 8px -2px var(--color-shadow); }
+
+  /* 지도 */
   .stage { position: relative; }
-  #status { position: absolute; top: 10px; left: 12px; max-width: 50%; font-size: 20px; font-weight: 700; pointer-events: none; }
-  #status small { display: block; font-size: 14px; font-weight: 400; color: #777; }
-  button { width: 100%; padding: 14px; font-size: 17px; border-radius: 12px; border: 0; background: #ff5a36; color: #fff; margin-top: 8px; }
-  button.sub { background: #eee; color: #222; }
-  button:disabled { opacity: .5; }
-  .title { width: 100%; font-size: 22px; font-weight: 700; border: 0; border-bottom: 2px dashed #ddd; padding: 4px 0; box-sizing: border-box; }
-  .note { font-size: 13px; color: #888; margin: 4px 0 0; }
-  .row { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
-  .row input { font-size: 16px; border: 1px solid transparent; border-radius: 6px; padding: 6px; min-width: 0; }
-  .row input:focus { border-color: #ff5a36; outline: none; }
-  .row input.time { width: 62px; text-align: center; flex: none; color: #ff5a36; font-weight: 700; background: #fff4f0; }
+  #map { width: 100%; display: block; background: var(--color-sea); border-radius: var(--radius-card); touch-action: none; user-select: none; -webkit-user-select: none; }
+  #map path { fill: var(--color-card); stroke: var(--color-sea-line); stroke-width: .5; transition: fill .9s var(--ease-out); }
+  #map path.flash { fill: var(--color-accent); transition: none; }
+  #map path.picked { fill: var(--color-accent-3); transition: none; }
+  #map .label { font: 700 15px var(--font-body); fill: var(--color-ink); text-anchor: middle; paint-order: stroke; stroke: var(--color-card); stroke-width: 4px; pointer-events: none; }
+  #map .zone { fill: var(--color-zone); }
+  #map .dartLayer { pointer-events: none; }
+  #inset { stroke: var(--color-sea-line); }
+  #dokdo { fill: var(--color-ink-2); }
+  #aim { stroke: var(--color-accent-3); }
+  #shadow { fill: var(--color-ink); }
+  .dart-tip { fill: var(--color-ink-2); } .dart-body { fill: var(--color-accent-3); } .dart-wing { fill: var(--color-accent-2); }
+  #status { position: absolute; top: 14px; left: 16px; max-width: 64%; font-size: 20px; font-weight: 700; letter-spacing: -.02em; pointer-events: none; }
+  #status small { display: block; margin-top: 2px; font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--color-ink-2); }
+  .star-burst { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; pointer-events: none;
+    background: linear-gradient(90deg, transparent 46%, var(--color-accent-3) 46% 54%, transparent 54%), linear-gradient(0deg, transparent 46%, var(--color-accent-3) 46% 54%, transparent 54%);
+    animation: burst .42s var(--ease-out) forwards; }
+  @keyframes burst { 0% { transform: scale(0); opacity: 1; } 60% { transform: scale(1.3) rotate(35deg); opacity: .9; } 100% { transform: scale(1.6) rotate(45deg); opacity: 0; } }
+
+  /* 버튼 · 누르면 눌리는 push / 조용한 soft */
+  .btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: .5em; margin-top: var(--space-md); padding: 15px; font-size: 17px; font-weight: 700;
+    background: var(--color-accent); color: var(--color-ink); border-radius: var(--radius-pill);
+    box-shadow: 0 4px 0 0 var(--color-accent-deep), 0 6px 12px -3px var(--color-accent-cast);
+    transition: transform .14s var(--ease-press), box-shadow .14s var(--ease-press), background-color .16s; }
+  @media (hover: hover) { .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 0 var(--color-accent-deep), 0 12px 22px -4px var(--color-accent-cast); } }
+  .btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 0 var(--color-accent-deep), 0 2px 6px -2px var(--color-accent-cast); transition-duration: .07s; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.sub { margin-top: var(--space-sm); background: var(--color-paper-2); box-shadow: none; font-weight: 600; }
+  @media (hover: hover) { .btn.sub:hover:not(:disabled) { background: var(--color-paper-3); box-shadow: none; transform: none; } }
+  .btn.sub:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+  .btn .arrow { transition: transform .14s var(--ease-press); }
+  @media (hover: hover) { .btn:hover .arrow { transform: translateX(3px); } }
+
+  /* 일정 */
+  .title { width: 100%; font: inherit; font-size: 28px; font-weight: 700; letter-spacing: -.025em; color: var(--color-ink); background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: var(--space-xs) 0 var(--space-2xs); }
+  .title:hover { border-bottom-color: var(--color-rule); }
+  .title:focus { border-bottom-color: var(--color-accent-deep); }
+  .title:focus-visible { outline: none; }
+  .note { font-size: 14px; color: var(--color-ink-2); margin: var(--space-2xs) 0 var(--space-md); }
+  .day { background: var(--color-card); border-radius: var(--radius-card); padding: var(--space-xs) var(--space-md) var(--space-sm); margin-bottom: var(--space-sm); box-shadow: 0 12px 32px -18px var(--color-shadow); }
+  .day h3 { margin: var(--space-sm) 0 var(--space-2xs); font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+  .row { display: flex; gap: var(--space-xs); align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--color-rule); }
+  .row input { font: inherit; font-size: 16px; color: var(--color-ink); background: none; border: 1px solid transparent; border-radius: var(--radius-input); padding: 8px; min-width: 0; }
+  .row input:focus { border-color: var(--color-accent-deep); }
+  .row input:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-accent-tint); }
+  .row input.time { width: 72px; flex: none; text-align: center; font-family: var(--font-mono); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; background: var(--color-accent-tint); }
   .row input.what { flex: 1; }
-  .row button { width: 36px; flex: none; margin: 0; padding: 6px; background: none; color: #bbb; font-size: 18px; }
-  button.add { background: none; color: #ff5a36; border: 1px dashed #ffb199; padding: 8px; font-size: 15px; }
-  .tip { background: #fff4e5; padding: 12px; border-radius: 8px; margin-top: 16px; }
+  .row button { width: 40px; height: 40px; flex: none; border-radius: 50%; color: var(--color-ink-2); font-size: 16px; transition: background-color .16s; }
+  @media (hover: hover) { .row button:hover { background: var(--color-paper-2); } }
+  button.add { width: 100%; margin-top: var(--space-xs); padding: 10px; font-size: 15px; font-weight: 600; color: var(--color-ink-2); border-radius: var(--radius-input); transition: background-color .16s, color .16s; }
+  @media (hover: hover) { button.add:hover { background: var(--color-paper-2); color: var(--color-ink); } }
+  .tip { background: var(--color-lavender-tint); padding: var(--space-md); border-radius: var(--radius-card); margin: var(--space-md) 0 0; font-size: 15px; line-height: 1.5; }
+  #planBody.loading { color: var(--color-ink-2); padding: var(--space-xl) 0; animation: pulse 1.2s var(--ease-out) infinite alternate; }
+  @keyframes pulse { to { opacity: .4; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; }
+    .mark, .mark.hit, #planBody.loading { animation: none; }
+    .star-burst { display: none; }
+    .btn:hover:not(:disabled), .btn:active:not(:disabled) { transform: none; }
+  }
 </style>
 </head>
 <body>
 <section id="home" class="screen">
-  <h1>어디가지 🎯</h1>
+  <header><h1>어디가지</h1><span class="mark" id="mark" aria-hidden="true"></span></header>
   <div class="tabs">
-    <button data-mode="roulette" class="active">🎡 지도 룰렛</button>
-    <button data-mode="dart">🎯 다트</button>
+    <button data-mode="roulette" class="active">지도 룰렛</button>
+    <button data-mode="dart">다트</button>
   </div>
   <div class="stage">
   <svg id="map" viewBox="0 0 400 672">
     <g id="regions"></g>
-    <rect id="inset" fill="none" stroke="#b9c7d3" stroke-dasharray="3 3"/><g id="dokdo"></g>
+    <rect id="inset" fill="none" stroke-dasharray="3 3"/><g id="dokdo"></g>
     <rect id="zone" class="zone" x="0" width="400" height="74" rx="12"/>
     <g id="labels"></g>
     <g class="dartLayer">
-      <line id="aim" stroke="#ff5a36" stroke-width="2" stroke-dasharray="6 5" hidden/>
-      <ellipse id="shadow" rx="6" ry="3" fill="#000" opacity="0"/>
+      <line id="aim" stroke-width="2" stroke-dasharray="6 5" hidden/>
+      <ellipse id="shadow" rx="6" ry="3" opacity="0"/>
       <g id="dart">
-        <path d="M0-24 L2-14 L-2-14Z" fill="#555"/>
-        <rect x="-2.5" y="-14" width="5" height="26" rx="2" fill="#ff5a36"/>
-        <path d="M0 6 L-9 20 L0 16 L9 20Z" fill="#2c7be5"/>
+        <path class="dart-tip" d="M0-24 L2-14 L-2-14Z"/>
+        <rect class="dart-body" x="-2.5" y="-14" width="5" height="26" rx="2"/>
+        <path class="dart-wing" d="M0 6 L-9 20 L0 16 L9 20Z"/>
       </g>
     </g>
   </svg>
   <div id="status"></div>
   </div>
-  <button id="go" hidden>여기로 1박 2일 일정 짜줘 →</button>
-  <button id="spin">룰렛 돌리기</button>
+  <button id="go" class="btn" hidden>여기로 1박 2일 일정 짜줘 <span class="arrow" aria-hidden="true">→</span></button>
+  <button id="spin" class="btn">룰렛 돌리기</button>
 </section>
 
 <section id="plan" class="screen" hidden>
   <input id="planTitle" class="title" aria-label="여행 제목">
   <p class="note" id="planNote"></p>
-  <div id="planBody">일정 짜는 중…</div>
-  <button id="invite" hidden>👥 친구 초대해서 같이 고치기</button>
-  <button id="back" class="sub">다시 뽑기</button>
+  <div id="planBody" class="loading">일정 짜는 중…</div>
+  <button id="invite" class="btn" hidden>친구 초대해서 같이 고치기</button>
+  <button id="back" class="btn sub">다시 뽑기</button>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js"></script>
@@ -85,7 +175,7 @@ fetch("regions.json").then((r) => r.json()).then((data) => {
   $("zone").setAttribute("y", MAP_H + 6);
   for (const k of ["x", "y", "width", "height"]) $("inset").setAttribute(k, data.inset[k[0]]);
   const [dx, dy] = data.inset.dokdo;
-  $("dokdo").innerHTML = `<circle cx="${dx}" cy="${dy}" r="2" fill="#8aa0b2"/><text x="${dx}" y="${dy + 12}" font-size="8" text-anchor="middle" fill="#8aa0b2">독도</text>`;
+  $("dokdo").innerHTML = `<circle cx="${dx}" cy="${dy}" r="2"/><text x="${dx}" y="${dy + 12}" font-size="8" text-anchor="middle">독도</text>`;
   $("regions").innerHTML = regions.map((r) => `<path d="${r.d}"/>`).join("");
   paths = [...$("regions").children];
   setMode("roulette");
@@ -105,10 +195,25 @@ function choose(r) {
   picked = r;
   paths[r.id].classList.add("picked");
   $("labels").innerHTML = `<text class="label" x="${r.cx}" y="${r.cy - 8}">${esc(r.name)}</text>`;
-  status(`🎉 ${r.name}`, `${r.prov} · 여기로 결정!`);
+  status(r.name, `${r.prov} · 여기로 결정!`);
+  celebrate(r);
   $("go").hidden = false;
   $("spin").classList.add("sub");
   $("go").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// 뽑힌 곳에서 별이 한 번 터지고, 머리의 과녁이 움찔
+function celebrate(r) {
+  const vb = svg.viewBox.baseVal, k = svg.clientWidth / vb.width;
+  const star = document.createElement("div");
+  star.className = "star-burst";
+  star.style.left = r.cx * k + "px";
+  star.style.top = r.cy * k + "px";
+  star.onanimationend = () => star.remove();
+  svg.parentNode.append(star);
+  const m = $("mark");
+  m.classList.remove("hit"); void m.offsetWidth; m.classList.add("hit");
+  m.onanimationend = (e) => e.animationName === "hit" && m.classList.remove("hit");
 }
 
 document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => !busy && setMode(b.dataset.mode)));
@@ -269,7 +374,7 @@ $("go").onclick = async () => {
   disconnect();
   $("planTitle").value = place;
   $("planNote").textContent = "";
-  $("planBody").textContent = "일정 짜는 중…";
+  $("planBody").textContent = "일정 짜는 중…"; $("planBody").className = "loading";
   try { plan = JSON.parse(localStorage.getItem(planKey)); } catch {}
   if (!plan) {
     try {
@@ -290,16 +395,17 @@ function savePlan() { try { localStorage.setItem(planKey, JSON.stringify(plan));
 
 function renderPlan() {
   $("planTitle").value = plan.title;
-  $("planNote").textContent = (plan.id ? "👥 같이 고치는 중 · " : plan.sample ? "샘플 일정 · " : "") + "눌러서 바로 고칠 수 있어요";
+  $("planNote").textContent = (plan.id ? "같이 고치는 중 · " : plan.sample ? "샘플 일정 · " : "") + "눌러서 바로 고칠 수 있어요";
   $("invite").hidden = !window.supabase;
-  $("invite").textContent = plan.id ? "👥 초대 링크 다시 보내기" : "👥 친구 초대해서 같이 고치기";
-  $("planBody").innerHTML = plan.days.map((d, di) => `<h3>${esc(d.day)}</h3>` +
+  $("invite").textContent = plan.id ? "초대 링크 다시 보내기" : "친구 초대해서 같이 고치기";
+  $("planBody").className = "";
+  $("planBody").innerHTML = plan.days.map((d, di) => `<section class="day"><h3>${esc(d.day)}</h3>` +
     d.items.map((it, i) => `<div class="row">
       <input class="time" inputmode="numeric" maxlength="5" placeholder="00:00" value="${esc(it.time)}" data-d="${di}" data-i="${i}" data-k="time" aria-label="시간">
       <input class="what" value="${esc(it.what)}" data-d="${di}" data-i="${i}" data-k="what" placeholder="할 일" aria-label="할 일">
       <button data-del="${di},${i}" aria-label="삭제">✕</button></div>`).join("") +
-    `<button class="add" data-add="${di}">+ 일정 추가</button>`
-  ).join("") + `<p class="tip">💡 ${esc(plan.tip)}</p>`;
+    `<button class="add" data-add="${di}">+ 일정 추가</button></section>`
+  ).join("") + `<p class="tip">${esc(plan.tip)}</p>`;
 }
 
 $("planTitle").oninput = (e) => { plan.title = e.target.value; titleDirty = true; savePlan(); queueFlush(); };
@@ -401,10 +507,10 @@ $("invite").onclick = async () => {
 const linkId = new URLSearchParams(location.search).get("plan");
 if (linkId && window.supabase) (async () => {
   show("plan");
-  $("planBody").textContent = "일정 불러오는 중…";
+  $("planBody").textContent = "일정 불러오는 중…"; $("planBody").className = "loading";
   connect(linkId);
   try { await loadShared(linkId); planKey = "eodigaji:plan:" + plan.prov + plan.place; savePlan(); renderPlan(); }
-  catch { $("planBody").textContent = "일정을 찾을 수 없어요. 링크를 다시 확인해 주세요."; }
+  catch { $("planBody").className = ""; $("planBody").textContent = "일정을 찾을 수 없어요. 링크를 다시 확인해 주세요."; }
 })();
 
 function esc(s) {
