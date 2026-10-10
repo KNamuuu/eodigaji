@@ -4,164 +4,178 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>어디가지</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-  /* Hallmark · genre: playful · macrostructure: Workbench (지도가 곧 도구) · theme: Hum
-   * tone: playful · anchor hue: pear 95 + cyan 235 + coral 18 · enrichment: none · nav/footer: 없음 (앱 화면)
-   * pre-emit critique: P4 H4 E4 S4 R4 V5
+  /* Hallmark · genre: modern-minimal · macrostructure: Workbench (지도 + 측면 패널) · theme: custom
+   * vibe: "지도 앱처럼 조용한 도구" · paper oklch(100% 0 0) · accent oklch(38% 0.12 262) navy · Pretendard 단일 서체
+   * axes: light / grotesk-sans / cool · enrichment: none · nav/footer: 없음 (앱 화면)
+   * layout: 모바일 1단(지도→패널) · 768px~ 2단(지도 | 340px 패널) · 1024px~ 400px · 1440px~ 440px
    */
   :root {
-    --color-paper: oklch(97% 0.012 95);
-    --color-paper-2: oklch(94% 0.016 95);
-    --color-paper-3: oklch(91% 0.02 95);
-    --color-card: oklch(99.5% 0.004 95);
-    --color-ink: oklch(20% 0.012 250);
-    --color-ink-2: oklch(45% 0.012 250);
-    --color-rule: oklch(90% 0.014 95);
-    --color-accent: oklch(86% 0.18 95);          /* pear · 주요 행동 */
-    --color-accent-deep: oklch(72% 0.16 85);
-    --color-accent-tint: oklch(94% 0.06 95);
-    --color-accent-cast: oklch(76% 0.2 95 / .45);
-    --color-accent-2: oklch(66% 0.18 235);       /* cyan · 바다·다트 깃 */
-    --color-accent-3: oklch(68% 0.24 18);        /* coral · 뽑힌 한 곳 */
-    --color-sea: oklch(93% 0.035 225);
-    --color-sea-line: oklch(80% 0.035 235);
-    --color-zone: oklch(88% 0.045 225);
-    --color-lavender-tint: oklch(95% 0.03 305);
-    --color-focus: oklch(55% 0.18 235);
-    --color-shadow: oklch(20% 0.012 250 / .12);
-    --font-body: "Plus Jakarta Sans", "Pretendard Variable", Pretendard, system-ui, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --color-paper: oklch(100% 0 0);
+    --color-paper-2: oklch(97.5% 0.003 260);
+    --color-ink: oklch(22% 0.02 260);
+    --color-ink-2: oklch(48% 0.015 260);
+    --color-rule: oklch(91% 0.006 260);
+    --color-accent: oklch(38% 0.12 262);
+    --color-accent-hover: oklch(31% 0.12 262);
+    --color-accent-soft: oklch(78% 0.07 262);
+    --color-accent-wing: oklch(62% 0.09 262);
+    --color-sea: oklch(96.5% 0.01 240);
+    --color-land-line: oklch(84% 0.01 250);
+    --color-zone: oklch(92.5% 0.014 240);
+    --color-shadow: oklch(22% 0.02 260 / .08);
+    --font-body: "Pretendard Variable", Pretendard, system-ui, sans-serif;
     --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 32px;
-    --radius-card: 20px; --radius-input: 12px; --radius-pill: 999px;
-    --ease-out: cubic-bezier(.22, 1, .36, 1);
-    --ease-press: cubic-bezier(.2, .7, .3, 1);
-    --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+    --radius: 8px; --radius-map: 12px;
+    --panel-w: 340px;
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
   }
   *, *::before, *::after { box-sizing: border-box; }
   html, body { overflow-x: clip; }
-  body { font-family: var(--font-body); margin: 0 auto; padding: var(--space-md); max-width: 480px; background: var(--color-paper); color: var(--color-ink); word-break: keep-all; -webkit-font-smoothing: antialiased; }
-  .screen[hidden], [hidden] { display: none !important; }
-  :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
-  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; white-space: nowrap; }
+  body { margin: 0; font-family: var(--font-body); background: var(--color-paper); color: var(--color-ink); word-break: keep-all; -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; white-space: nowrap; }
 
-  /* 머리 · 워드마크 + 반응하는 과녁 */
-  header { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-2xs) var(--space-md); }
-  h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.025em; }
-  .mark { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, var(--color-accent-3) 0 30%, var(--color-accent) 32%); box-shadow: 0 2px 0 var(--color-accent-deep); animation: breathe 4s var(--ease-out) infinite; }
-  .mark.hit { animation: hit .5s var(--ease-spring); }
-  @keyframes breathe { 50% { transform: scale(1.08); } }
-  @keyframes hit { 40% { transform: scale(1.5) rotate(20deg); } }
+  /* ── 레이아웃 ── */
+  .app { display: grid; grid-template-areas: "brand" "map" "panel"; }
+  .brand { grid-area: brand; display: flex; align-items: baseline; gap: var(--space-xs); padding: var(--space-md) var(--space-md) var(--space-sm); }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+  .brand p { margin: 0; font-size: 13px; color: var(--color-ink-2); }
+  .map-pane { grid-area: map; position: relative; margin: 0 var(--space-md); background: var(--color-sea); border-radius: var(--radius-map); overflow: hidden; }
+  .panel { grid-area: panel; padding: var(--space-md); min-width: 0; }
+  .app[data-view="plan"] .map-pane { display: none; }   /* 모바일: 일정 볼 땐 지도 접기 */
+  .desk { display: none; }
 
-  /* 모드 전환 · 알약 트랙 */
-  .tabs { display: flex; gap: var(--space-2xs); padding: var(--space-2xs); margin-bottom: var(--space-sm); background: var(--color-paper-2); border-radius: var(--radius-pill); }
-  .tabs button { flex: 1; padding: 10px; font-size: 15px; font-weight: 600; color: var(--color-ink-2); border-radius: var(--radius-pill); transition: background-color .16s, color .16s; }
-  .tabs button.active { background: var(--color-card); color: var(--color-ink); box-shadow: 0 2px 8px -2px var(--color-shadow); }
+  @media (min-width: 768px) {
+    .app { height: 100dvh; grid-template-columns: minmax(0, 1fr) var(--panel-w); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "map brand" "map panel"; }
+    .brand { flex-direction: column; gap: var(--space-2xs); padding: var(--space-xl) var(--space-lg) var(--space-md); border-left: 1px solid var(--color-rule); }
+    .brand h1 { font-size: 22px; }
+    .panel { overflow-y: auto; padding: 0 var(--space-lg) var(--space-xl); border-left: 1px solid var(--color-rule); }
+    .map-pane, .app[data-view="plan"] .map-pane { display: flex; margin: 0; border-radius: 0; }
+    #map { height: 100%; padding: var(--space-xl); }
+    .desk { display: block; }
+  }
+  @media (min-width: 1024px) { :root { --panel-w: 400px; } }
+  @media (min-width: 1440px) { :root { --panel-w: 440px; } }
+  /* 일정 단계: 지도는 위치 확인용으로 줄이고 일정에 자리를 내줌 */
+  @media (min-width: 768px) { .app[data-view="plan"] { --panel-w: min(600px, 58%); } }
 
-  /* 지도 */
-  .stage { position: relative; }
-  #map { width: 100%; display: block; background: var(--color-sea); border-radius: var(--radius-card); touch-action: none; user-select: none; -webkit-user-select: none; }
-  #map path { fill: var(--color-card); stroke: var(--color-sea-line); stroke-width: .5; transition: fill .9s var(--ease-out); }
-  #map path.flash { fill: var(--color-accent); transition: none; }
-  #map path.picked { fill: var(--color-accent-3); transition: none; }
-  #map .label { font: 700 15px var(--font-body); fill: var(--color-ink); text-anchor: middle; paint-order: stroke; stroke: var(--color-card); stroke-width: 4px; pointer-events: none; }
+  /* ── 지도 ── */
+  #map { width: 100%; max-height: 64dvh; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+  @media (min-width: 768px) { #map { max-height: none; } }
+  #map path { fill: var(--color-paper); stroke: var(--color-land-line); stroke-width: .5; transition: fill .9s var(--ease-out); }
+  #map path.flash { fill: var(--color-accent-soft); transition: none; }
+  #map path.picked { fill: var(--color-accent); transition: none; }
+  #map .label { font: 700 14px var(--font-body); fill: var(--color-ink); text-anchor: middle; paint-order: stroke; stroke: var(--color-paper); stroke-width: 4px; pointer-events: none; }
   #map .zone { fill: var(--color-zone); }
   #map .dartLayer { pointer-events: none; }
-  #inset { stroke: var(--color-sea-line); }
+  #inset { stroke: var(--color-land-line); }
   #dokdo { fill: var(--color-ink-2); }
-  #aim { stroke: var(--color-accent-3); }
+  #aim { stroke: var(--color-accent); }
   #shadow { fill: var(--color-ink); }
-  .dart-tip { fill: var(--color-ink-2); } .dart-body { fill: var(--color-accent-3); } .dart-wing { fill: var(--color-accent-2); }
-  #status { position: absolute; top: 14px; left: 16px; max-width: 64%; font-size: 20px; font-weight: 700; letter-spacing: -.02em; pointer-events: none; }
-  #status small { display: block; margin-top: 2px; font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--color-ink-2); }
-  .star-burst { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; pointer-events: none;
-    background: linear-gradient(90deg, transparent 46%, var(--color-accent-3) 46% 54%, transparent 54%), linear-gradient(0deg, transparent 46%, var(--color-accent-3) 46% 54%, transparent 54%);
-    animation: burst .42s var(--ease-out) forwards; }
-  @keyframes burst { 0% { transform: scale(0); opacity: 1; } 60% { transform: scale(1.3) rotate(35deg); opacity: .9; } 100% { transform: scale(1.6) rotate(45deg); opacity: 0; } }
+  .dart-tip { fill: var(--color-ink-2); } .dart-body { fill: var(--color-accent); } .dart-wing { fill: var(--color-accent-wing); }
+  #status { position: absolute; top: var(--space-sm); left: var(--space-sm); max-width: calc(100% - 120px); padding: var(--space-xs) var(--space-sm); background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius); box-shadow: 0 2px 8px var(--color-shadow); font-size: 15px; font-weight: 700; pointer-events: none; }
+  #status small { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--color-ink-2); }
+  @media (min-width: 768px) { #status { top: var(--space-lg); left: var(--space-lg); max-width: 320px; } }
 
-  /* 버튼 · 누르면 눌리는 push / 조용한 soft */
-  .btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: .5em; margin-top: var(--space-md); padding: 15px; font-size: 17px; font-weight: 700;
-    background: var(--color-accent); color: var(--color-ink); border-radius: var(--radius-pill);
-    box-shadow: 0 4px 0 0 var(--color-accent-deep), 0 6px 12px -3px var(--color-accent-cast);
-    transition: transform .14s var(--ease-press), box-shadow .14s var(--ease-press), background-color .16s; }
-  @media (hover: hover) { .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 0 var(--color-accent-deep), 0 12px 22px -4px var(--color-accent-cast); } }
-  .btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 0 var(--color-accent-deep), 0 2px 6px -2px var(--color-accent-cast); transition-duration: .07s; }
-  .btn:disabled { opacity: .55; cursor: default; }
-  .btn.sub { margin-top: var(--space-sm); background: var(--color-paper-2); box-shadow: none; font-weight: 600; }
-  @media (hover: hover) { .btn.sub:hover:not(:disabled) { background: var(--color-paper-3); box-shadow: none; transform: none; } }
-  .btn.sub:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
-  .btn .arrow { transition: transform .14s var(--ease-press); }
-  @media (hover: hover) { .btn:hover .arrow { transform: translateX(3px); } }
+  /* ── 패널 ── */
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--color-rule); }
+  .tabs button { padding: var(--space-sm) 0; font-size: 15px; font-weight: 600; color: var(--color-ink-2); box-shadow: inset 0 -2px 0 transparent; transition: color .12s, box-shadow .12s; }
+  .tabs button.active { color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); }
+  @media (hover: hover) { .tabs button:not(.active):hover { color: var(--color-ink); } }
+  .help { margin: var(--space-md) 0 0; font-size: 14px; line-height: 1.6; color: var(--color-ink-2); }
+  .result { margin-top: var(--space-lg); padding: var(--space-md) 0; border-top: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); }
+  .result .prov { margin: 0; font-size: 13px; color: var(--color-ink-2); }
+  .result .name { margin: var(--space-2xs) 0 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
+  .result .empty { margin: 0; font-size: 14px; color: var(--color-ink-2); }
 
-  /* 일정 */
-  .title { width: 100%; font: inherit; font-size: 28px; font-weight: 700; letter-spacing: -.025em; color: var(--color-ink); background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: var(--space-xs) 0 var(--space-2xs); }
+  .btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: .4em; height: 48px; margin-top: var(--space-sm); padding: 0 var(--space-md); font-size: 16px; font-weight: 600; color: var(--color-paper); background: var(--color-accent); border-radius: var(--radius); transition: background-color .12s, transform .12s var(--ease-out); }
+  @media (hover: hover) { .btn:hover:not(:disabled) { background: var(--color-accent-hover); } }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.sub { color: var(--color-ink); background: var(--color-paper); box-shadow: inset 0 0 0 1px var(--color-rule); }
+  @media (hover: hover) { .btn.sub:hover:not(:disabled) { background: var(--color-paper-2); } }
+  #home .btn:first-of-type { margin-top: var(--space-md); }
+
+  /* ── 일정 ── */
+  .back { display: inline-flex; align-items: center; gap: var(--space-2xs); margin: 0 0 var(--space-sm) calc(-1 * var(--space-xs)); padding: var(--space-xs); font-size: 14px; color: var(--color-ink-2); border-radius: var(--radius); }
+  @media (hover: hover) { .back:hover { color: var(--color-ink); background: var(--color-paper-2); } }
+  .title { width: 100%; font: inherit; font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--color-ink); background: none; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: var(--space-2xs) 0; }
   .title:hover { border-bottom-color: var(--color-rule); }
-  .title:focus { border-bottom-color: var(--color-accent-deep); }
+  .title:focus { border-bottom-color: var(--color-accent); }
   .title:focus-visible { outline: none; }
-  .note { font-size: 14px; color: var(--color-ink-2); margin: var(--space-2xs) 0 var(--space-md); }
-  .day { background: var(--color-card); border-radius: var(--radius-card); padding: var(--space-xs) var(--space-md) var(--space-sm); margin-bottom: var(--space-sm); box-shadow: 0 12px 32px -18px var(--color-shadow); }
-  .day h3 { margin: var(--space-sm) 0 var(--space-2xs); font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
-  .row { display: flex; gap: var(--space-xs); align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--color-rule); }
-  .row input { font: inherit; font-size: 16px; color: var(--color-ink); background: none; border: 1px solid transparent; border-radius: var(--radius-input); padding: 8px; min-width: 0; }
-  .row input:focus { border-color: var(--color-accent-deep); }
-  .row input:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-accent-tint); }
-  .row input.time { width: 72px; flex: none; text-align: center; font-family: var(--font-mono); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; background: var(--color-accent-tint); }
+  .note { margin: var(--space-2xs) 0 0; font-size: 13px; color: var(--color-ink-2); }
+  .day { margin-top: var(--space-lg); }
+  .day h3 { margin: 0; padding-bottom: var(--space-xs); font-size: 13px; font-weight: 600; color: var(--color-ink-2); border-bottom: 1px solid var(--color-ink); }
+  .row { display: flex; align-items: center; gap: var(--space-2xs); border-bottom: 1px solid var(--color-rule); }
+  .row input { font: inherit; font-size: 16px; color: var(--color-ink); background: none; border: 0; border-radius: var(--radius); padding: var(--space-sm) var(--space-xs); min-width: 0; }
+  .row input:focus { background: var(--color-paper-2); }
+  .row input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--color-accent); }
+  .row input.time { width: 64px; flex: none; padding-left: 0; font-weight: 600; color: var(--color-accent); font-variant-numeric: tabular-nums; }
+  .row input.time:focus { padding-left: var(--space-xs); }
   .row input.what { flex: 1; }
-  .row button { width: 40px; height: 40px; flex: none; border-radius: 50%; color: var(--color-ink-2); font-size: 16px; transition: background-color .16s; }
-  @media (hover: hover) { .row button:hover { background: var(--color-paper-2); } }
-  button.add { width: 100%; margin-top: var(--space-xs); padding: 10px; font-size: 15px; font-weight: 600; color: var(--color-ink-2); border-radius: var(--radius-input); transition: background-color .16s, color .16s; }
-  @media (hover: hover) { button.add:hover { background: var(--color-paper-2); color: var(--color-ink); } }
-  .tip { background: var(--color-lavender-tint); padding: var(--space-md); border-radius: var(--radius-card); margin: var(--space-md) 0 0; font-size: 15px; line-height: 1.5; }
-  #planBody.loading { color: var(--color-ink-2); padding: var(--space-xl) 0; animation: pulse 1.2s var(--ease-out) infinite alternate; }
+  .row button { width: 36px; height: 36px; flex: none; border-radius: var(--radius); color: var(--color-ink-2); font-size: 14px; }
+  @media (hover: hover) { .row button:hover { color: var(--color-ink); background: var(--color-paper-2); } }
+  button.add { margin-top: var(--space-2xs); padding: var(--space-xs) 0; font-size: 14px; font-weight: 600; color: var(--color-accent); }
+  @media (hover: hover) { button.add:hover { text-decoration: underline; text-underline-offset: 3px; } }
+  .tip { margin: var(--space-lg) 0 0; padding: var(--space-sm) var(--space-md); font-size: 14px; line-height: 1.6; color: var(--color-ink-2); background: var(--color-paper-2); border-radius: var(--radius); }
+  #planBody.loading { padding: var(--space-xl) 0; color: var(--color-ink-2); animation: pulse 1.2s var(--ease-out) infinite alternate; }
   @keyframes pulse { to { opacity: .4; } }
+  #invite { margin-top: var(--space-lg); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: .01ms !important; }
-    .mark, .mark.hit, #planBody.loading { animation: none; }
-    .star-burst { display: none; }
-    .btn:hover:not(:disabled), .btn:active:not(:disabled) { transform: none; }
+    #planBody.loading { animation: none; }
+    .btn:active:not(:disabled) { transform: none; }
   }
 </style>
 </head>
 <body>
-<section id="home" class="screen">
-  <header><h1>어디가지</h1><span class="mark" id="mark" aria-hidden="true"></span></header>
-  <div class="tabs">
-    <button data-mode="roulette" class="active">지도 룰렛</button>
-    <button data-mode="dart">다트</button>
-  </div>
-  <div class="stage">
-  <svg id="map" viewBox="0 0 400 672">
-    <g id="regions"></g>
-    <rect id="inset" fill="none" stroke-dasharray="3 3"/><g id="dokdo"></g>
-    <rect id="zone" class="zone" x="0" width="400" height="74" rx="12"/>
-    <g id="labels"></g>
-    <g class="dartLayer">
-      <line id="aim" stroke-width="2" stroke-dasharray="6 5" hidden/>
-      <ellipse id="shadow" rx="6" ry="3" opacity="0"/>
-      <g id="dart">
-        <path class="dart-tip" d="M0-24 L2-14 L-2-14Z"/>
-        <rect class="dart-body" x="-2.5" y="-14" width="5" height="26" rx="2"/>
-        <path class="dart-wing" d="M0 6 L-9 20 L0 16 L9 20Z"/>
-      </g>
-    </g>
-  </svg>
-  <div id="status"></div>
-  </div>
-  <button id="go" class="btn" hidden>여기로 1박 2일 일정 짜줘 <span class="arrow" aria-hidden="true">→</span></button>
-  <button id="spin" class="btn">룰렛 돌리기</button>
-</section>
+<div class="app" id="app" data-view="home">
+  <header class="brand"><h1>어디가지</h1><p>전국 167곳 중 한 곳을 뽑아 1박 2일을 짜요</p></header>
 
-<section id="plan" class="screen" hidden>
-  <input id="planTitle" class="title" aria-label="여행 제목">
-  <p class="note" id="planNote"></p>
-  <div id="planBody" class="loading">일정 짜는 중…</div>
-  <button id="invite" class="btn" hidden>친구 초대해서 같이 고치기</button>
-  <button id="back" class="btn sub">다시 뽑기</button>
-</section>
+  <main class="map-pane">
+    <svg id="map" viewBox="0 0 400 672">
+      <g id="regions"></g>
+      <rect id="inset" fill="none" stroke-dasharray="3 3"/><g id="dokdo"></g>
+      <rect id="zone" class="zone" x="0" width="400" height="74" rx="8"/>
+      <g id="labels"></g>
+      <g class="dartLayer">
+        <line id="aim" stroke-width="2" stroke-dasharray="6 5" hidden/>
+        <ellipse id="shadow" rx="6" ry="3" opacity="0"/>
+        <g id="dart"><g transform="translate(0 24)"><!-- 바늘 끝이 기준점(0,0) = 판정 지점 -->
+          <path class="dart-tip" d="M0-24 L2-14 L-2-14Z"/>
+          <rect class="dart-body" x="-2.5" y="-14" width="5" height="26" rx="2"/>
+          <path class="dart-wing" d="M0 6 L-9 20 L0 16 L9 20Z"/>
+        </g></g>
+      </g>
+    </svg>
+    <div id="status" aria-live="polite"></div>
+  </main>
+
+  <aside class="panel">
+    <section id="home" class="screen">
+      <div class="tabs" role="tablist">
+        <button data-mode="roulette" class="active" role="tab">지도 룰렛</button>
+        <button data-mode="dart" role="tab">다트</button>
+      </div>
+      <p class="help desk" id="help"></p>
+      <div class="result desk" id="result"></div>
+      <button id="go" class="btn" hidden>여기로 1박 2일 일정 짜기</button>
+      <button id="spin" class="btn">룰렛 돌리기</button>
+    </section>
+
+    <section id="plan" class="screen" hidden>
+      <button id="back" class="back">← 다시 뽑기</button>
+      <input id="planTitle" class="title" aria-label="여행 제목">
+      <p class="note" id="planNote"></p>
+      <div id="planBody" class="loading">일정 짜는 중…</div>
+      <button id="invite" class="btn" hidden>친구 초대해서 같이 고치기</button>
+    </section>
+  </aside>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js"></script>
 <script>
@@ -181,7 +195,7 @@ fetch("regions.json").then((r) => r.json()).then((data) => {
   setMode("roulette");
 });
 
-function show(id) { document.querySelectorAll(".screen").forEach((s) => (s.hidden = s.id !== id)); }
+function show(id) { document.querySelectorAll(".screen").forEach((s) => (s.hidden = s.id !== id)); $("app").dataset.view = id; scrollTo(0, 0); }
 function status(main, sub = "") { $("status").innerHTML = `${esc(main)}<small>${esc(sub)}</small>`; }
 
 function clearPick() {
@@ -190,30 +204,17 @@ function clearPick() {
   $("go").hidden = true;
   picked = null;
   $("spin").classList.remove("sub");
+  $("result").innerHTML = `<p class="empty">아직 고른 곳이 없어요</p>`;
 }
 function choose(r) {
   picked = r;
   paths[r.id].classList.add("picked");
   $("labels").innerHTML = `<text class="label" x="${r.cx}" y="${r.cy - 8}">${esc(r.name)}</text>`;
   status(r.name, `${r.prov} · 여기로 결정!`);
-  celebrate(r);
   $("go").hidden = false;
   $("spin").classList.add("sub");
+  $("result").innerHTML = `<p class="prov">${esc(r.prov)}</p><p class="name">${esc(r.name)}</p>`;
   $("go").scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-// 뽑힌 곳에서 별이 한 번 터지고, 머리의 과녁이 움찔
-function celebrate(r) {
-  const vb = svg.viewBox.baseVal, k = svg.clientWidth / vb.width;
-  const star = document.createElement("div");
-  star.className = "star-burst";
-  star.style.left = r.cx * k + "px";
-  star.style.top = r.cy * k + "px";
-  star.onanimationend = () => star.remove();
-  svg.parentNode.append(star);
-  const m = $("mark");
-  m.classList.remove("hit"); void m.offsetWidth; m.classList.add("hit");
-  m.onanimationend = (e) => e.animationName === "hit" && m.classList.remove("hit");
 }
 
 document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => !busy && setMode(b.dataset.mode)));
@@ -223,7 +224,9 @@ function setMode(m) {
   clearPick();
   $("spin").hidden = m !== "roulette";
   svg.setAttribute("viewBox", `0 0 400 ${m === "dart" ? MAP_H + 80 : MAP_H}`); // 던지는 자리는 다트 모드에만
+  $("zone").style.display = m === "dart" ? "" : "none"; // 지도가 위아래로 남을 때 회색 판이 비치지 않게
   resetDart();
+  $("help").textContent = m === "roulette" ? "버튼을 누르면 지도 위를 빠르게 돌다가 한 곳에 멈춰요." : "지도를 누른 채 아래로 당겼다 놓으면 다트가 날아가요. 바람을 보고 세기를 조절하세요.";
   if (m === "roulette") status("어디로 갈까?", "버튼을 누르면 지도에 불이 들어와요");
   else newWind();
 }
@@ -274,7 +277,7 @@ function newWind() {
   const a = Math.random() * Math.PI * 2, s = Math.random() * 3; // m/s
   wind = { x: Math.cos(a) * s * 45, y: Math.sin(a) * s * 45 };
   const arrow = "→↘↓↙←↖↑↗"[Math.round(a / (Math.PI / 4)) % 8];
-  status("지도 아무 데나 누르고 아래로 당겼다 놓아요", `🌬️ 바람 ${arrow} ${s.toFixed(1)}m/s · 세게 당길수록 멀리`);
+  status("지도 아무 데나 누르고 아래로 당겼다 놓아요", `바람 ${arrow} ${s.toFixed(1)}m/s · 세게 당길수록 멀리`);
 }
 
 svg.addEventListener("pointerdown", (e) => {
@@ -339,7 +342,7 @@ function land(x, y, ang) {
   const i = y < MAP_H ? paths.findIndex((p) => p.isPointInFill(pt)) : -1;
   busy = false;
   if (i >= 0) choose(regions[i]);
-  else setTimeout(() => { status("🌊 풍덩! 바다에 빠졌어요", "다시 던져보세요"); setTimeout(() => { resetDart(); newWind(); }, 1200); }, 300);
+  else setTimeout(() => { status("풍덩, 바다에 빠졌어요", "다시 던져보세요"); setTimeout(() => { resetDart(); newWind(); }, 1200); }, 300);
 }
 
 // ── 일정: 수정 가능, 브라우저에 저장 ──
@@ -474,7 +477,7 @@ $("plan").addEventListener("focusout", () => setTimeout(() => stale && refresh()
 
 const itemRow = (it) => ({ id: it.id, plan_id: plan.id, day: plan.days.findIndex((d) => d.items.includes(it)), time: it.time, what: it.what });
 function synced({ error }) {
-  if (error) return ($("planNote").textContent = "⚠️ 저장 실패: " + error.message);
+  if (error) return ($("planNote").textContent = "저장 실패: " + error.message);
   chan?.send({ type: "broadcast", event: "changed", payload: {} });
 }
 function queueFlush() { if (plan.id) { clearTimeout(flushTimer); flushTimer = setTimeout(flush, 400); } }
@@ -494,13 +497,13 @@ $("invite").onclick = async () => {
     const r = await db.from("plans").insert({ id, prov: plan.prov, place: plan.place, title: plan.title, tip: plan.tip });
     plan.id = id;
     const r2 = r.error ? r : await db.from("items").insert(plan.days.flatMap((d) => d.items.map(itemRow)));
-    if (r2.error) { plan.id = undefined; disconnect(); return ($("planNote").textContent = "⚠️ 공유 실패: " + r2.error.message); }
+    if (r2.error) { plan.id = undefined; disconnect(); return ($("planNote").textContent = "공유 실패: " + r2.error.message); }
     savePlan(); renderPlan();
   }
   const url = location.origin + location.pathname + "?plan=" + plan.id;
   history.replaceState(null, "", url);
   if (navigator.share) return navigator.share({ title: plan.title, text: "같이 여행 일정 고치자!", url }).catch(() => {});
-  try { await navigator.clipboard.writeText(url); $("planNote").textContent = "🔗 링크 복사됨 · 친구에게 보내세요"; }
+  try { await navigator.clipboard.writeText(url); $("planNote").textContent = "링크 복사됨 · 친구에게 보내세요"; }
   catch { prompt("이 링크를 친구에게 보내세요", url); }
 };
 

@@ -1,1 +1,18 @@
-[{ "date": "2026-10-11", "macrostructure": "Workbench", "theme": "Hum", "enrichment": "none", "brief": "어디가지 · 지도 룰렛/다트로 여행지 뽑고 일정 공동 편집" }]
+[
+ {
+  "date": "2026-10-11",
+  "macrostructure": "Workbench (split: map | panel)",
+  "theme": "custom",
+  "theme_axes": "light / grotesk-sans / cool",
+  "vibe": "지도 앱처럼 조용한 도구",
+  "enrichment": "none",
+  "brief": "어디가지 · 반응형 재설계"
+ },
+ {
+  "date": "2026-10-11",
+  "macrostructure": "Workbench",
+  "theme": "Hum",
+  "enrichment": "none",
+  "brief": "어디가지 · 지도 룰렛/다트로 여행지 뽑고 일정 공동 편집"
+ }
+]
