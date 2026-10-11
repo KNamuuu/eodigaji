@@ -30,26 +30,27 @@ for (const g of geoms) {
 const W = 400, PAD = 12;
 const features = [...groups.values()].map((u) => ({ ...u, geo: merge(topo, u.geoms) }));
 const fc = (fs) => ({ type: "FeatureCollection", features: fs.map((f) => ({ type: "Feature", geometry: f.geo })) });
-// 백령도(옹진)·독도(울릉) 때문에 지도가 작아지므로 본토 기준으로 맞추고 울릉군은 오른쪽 위 박스로 뺌
-const isInset = (f) => f.name === "울릉군";
-const proj = geoMercator().fitWidth(W - PAD * 2, fc(features.filter((f) => !isInset(f) && f.name !== "옹진군")));
+// 백령도(옹진)·독도(울릉) 때문에 지도가 작아지므로 본토 기준으로 맞춤. 울릉군은 높이(위도)는 그대로, 동쪽 거리만 줄여 울진 앞바다에 둠
+const isUlleung = (f) => f.name === "울릉군";
+const mainland = fc(features.filter((f) => !isUlleung(f) && f.name !== "옹진군"));
+const proj = geoMercator().fitWidth(W - PAD * 2, mainland);
 proj.translate([proj.translate()[0] + PAD, proj.translate()[1] + PAD]);
 const path = geoPath(proj).digits(1);
-const H = Math.ceil(path.bounds(fc(features.filter((f) => !isInset(f) && f.name !== "옹진군")))[1][1]) + PAD;
+const H = Math.ceil(path.bounds(mainland)[1][1]) + PAD;
 
-// 울릉도 본섬만 확대해서 박스에 넣고, 독도는 점으로 표시
-const ulleung = features.find(isInset);
-const island = { type: "MultiPolygon", coordinates: (ulleung.geo.type === "Polygon" ? [ulleung.geo.coordinates] : ulleung.geo.coordinates).filter((poly) => poly[0].every(([lon]) => lon < 131)) };
-const box = { x: W - PAD - 90, y: PAD, w: 90, h: 64 };
-const insetProj = geoMercator().fitExtent([[box.x + 8, box.y + 8], [box.x + box.w - 30, box.y + box.h - 8]], island);
-const insetPath = geoPath(insetProj).digits(1);
-box.dokdo = [box.x + box.w - 14, box.y + box.h / 2];
-ulleung.geo = island;
+// 울릉도 본섬만 남기고(독도는 점) 가로 약 495 → 376으로 옮김. 실제 크기는 점에 가까우니 판정은 원(hit)으로 넉넉히
+const ulleung = features.find(isUlleung);
+ulleung.geo = { type: "MultiPolygon", coordinates: (ulleung.geo.type === "Polygon" ? [ulleung.geo.coordinates] : ulleung.geo.coordinates).filter((poly) => poly[0].every(([lon]) => lon < 131)) };
+const ULLEUNG_X = 376, DOKDO_X = 392;
+const shift = ULLEUNG_X - path.centroid(ulleung.geo)[0];
+const ulleungPath = geoPath(geoMercator().scale(proj.scale()).translate([proj.translate()[0] + shift, proj.translate()[1]])).digits(1);
+const dokdo = [DOKDO_X, +proj([131.8697, 37.2417])[1].toFixed(1)];
 
 const regions = features.map((f, i) => {
-  const pth = isInset(f) ? insetPath : path;
-  const [cx, cy] = pth.centroid(f.geo);
-  return { id: i, name: f.name, prov: f.prov, d: pth(f.geo), cx: +cx.toFixed(1), cy: +cy.toFixed(1) };
+  const pth = isUlleung(f) ? ulleungPath : path;
+  const [cx, cy] = pth.centroid(f.geo).map((v) => +v.toFixed(1));
+  const hit = isUlleung(f) ? { hit: [[cx, cy, 12], [...dokdo, 7]] } : {};
+  return { id: i, name: f.name, prov: f.prov, d: pth(f.geo), cx, cy, ...hit };
 });
-fs.writeFileSync("public/regions.json", JSON.stringify({ w: W, h: H, inset: box, regions }));
-console.log(regions.length, "regions", W, "x", H, box);
+fs.writeFileSync("public/regions.json", JSON.stringify({ w: W, h: H, dokdo, regions }));
+console.log(regions.length, "regions", W, "x", H, "dokdo", dokdo);

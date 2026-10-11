@@ -64,18 +64,26 @@ a.who { font-weight: 600; color: var(--color-accent); }
 
 /* ── 지도 ── */
 #map { width: 100%; max-height: 64dvh; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
-@media (min-width: 768px) { #map { max-height: none; } }
+#map:has(.dartLayer) { max-height: 72dvh; } /* 다트: 아래 던지는 판까지 */
+@media (min-width: 768px) { #map, #map:has(.dartLayer) { max-height: none; } }
 #map path { fill: var(--color-paper); stroke: var(--color-land-line); stroke-width: .5; transition: fill .9s var(--ease-out); }
 #map path.flash { fill: var(--color-accent-soft); transition: none; }
 #map path.picked { fill: var(--color-accent); transition: none; }
 #map .label { font: 700 14px var(--font-body); fill: var(--color-ink); text-anchor: middle; paint-order: stroke; stroke: var(--color-paper); stroke-width: 4px; pointer-events: none; }
 #map .zone { fill: var(--color-zone); }
 #map .dartLayer { pointer-events: none; }
-#inset { stroke: var(--color-land-line); }
 #dokdo { fill: var(--color-ink-2); }
 #aim { stroke: var(--color-accent); }
 #shadow { fill: var(--color-ink); }
-.dart-tip { fill: var(--color-ink-2); } .dart-body { fill: var(--color-accent); } .dart-wing { fill: var(--color-accent-wing); }
+#target { fill: none; stroke: var(--color-accent); stroke-width: 1.5; }
+#band { stroke: var(--color-accent-soft); stroke-linecap: round; }
+#ring { fill: none; stroke: var(--color-accent); stroke-width: 2; }
+.ripple { fill: none; stroke: var(--color-accent-soft); stroke-width: 1.5; }
+.dart-hint { font: 600 12px var(--font-body); fill: var(--color-ink-2); pointer-events: none; }
+#dart path { stroke: none; transition: none; } /* #map path 기본값(흰 땅) 덮기 */
+#dart .dart-tip { fill: var(--color-ink-2); } #dart .dart-body { fill: var(--color-accent); }
+#dart .dart-grip { fill: none; stroke: var(--color-paper); stroke-width: .7; opacity: .6; }
+#dart .dart-flights path { fill: var(--color-accent-wing); } #dart .dart-flights .far { fill: var(--color-accent-soft); }
 #status { position: absolute; top: var(--space-sm); left: var(--space-sm); max-width: calc(100% - 120px); padding: var(--space-xs) var(--space-sm); background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius); box-shadow: 0 2px 8px var(--color-shadow); font-size: 15px; font-weight: 700; pointer-events: none; }
 #status small { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--color-ink-2); }
 @media (min-width: 768px) { #status { top: var(--space-lg); left: var(--space-lg); max-width: 320px; } }

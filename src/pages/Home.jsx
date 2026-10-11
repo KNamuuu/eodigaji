@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
-import Dart from "../components/Dart.jsx";
+import Dart, { ZONE_H } from "../components/Dart.jsx";
 import { useRegions } from "../regions.js";
 
 const HELP = {
   roulette: "버튼을 누르면 지도 위를 빠르게 돌다가 한 곳에 멈춰요.",
-  dart: "지도를 누른 채 아래로 당겼다 놓으면 다트가 날아가요. 바람을 보고 세기를 조절하세요.",
+  dart: "지도 어디서든 누른 채 아래로 당겼다 놓으면 다트가 날아가요. 점선 원이 떨어질 곳이에요 — 바람만큼 밀려요.",
 };
 const pickedStatus = (r) => [r.name, `${r.prov} · 여기로 결정!`];
 const idleStatus = ["어디로 갈까?", "버튼을 누르면 지도에 불이 들어와요"];
@@ -58,7 +58,7 @@ export default function Home() {
   }
 
   const map = (
-    <KoreaMap data={data} height={data && (mode === "dart" ? data.h + 80 : data.h)} picked={picked} svgRef={svgRef} pathsRef={pathsRef}>
+    <KoreaMap data={data} height={data && (mode === "dart" ? data.h + ZONE_H : data.h)} picked={picked} svgRef={svgRef} pathsRef={pathsRef}>
       {data && mode === "dart" && <Dart key={round} svgRef={svgRef} pathsRef={pathsRef} data={data} setBusy={setBusy} setStatus={setStatus} onPick={choose} />}
     </KoreaMap>
   );
