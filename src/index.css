@@ -256,3 +256,8 @@ h2.title { margin: 0; }
 #card { margin-top: var(--space-xl); }
 #card img { display: block; width: 100%; max-width: 360px; margin: var(--space-md) auto 0; border-radius: var(--radius); outline: 1px solid var(--color-rule); }
 #card a.btn { text-decoration: none; }
+#legal h3 { margin: var(--space-lg) 0 0; font-size: 16px; color: var(--color-ink); }
+#legal p, #legal ul { margin: var(--space-xs) 0 0; font-size: 14px; line-height: 1.7; color: var(--color-ink-2); }
+#legal ul { padding-left: 1.2em; }
+#bye { margin-top: var(--space-xl); padding-top: var(--space-md); border-top: 1px solid var(--color-rule); }
+#bye summary { cursor: pointer; font-size: 14px; color: var(--color-ink-2); }

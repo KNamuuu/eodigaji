@@ -260,3 +260,23 @@ end $$;
 revoke execute on function public.hide_reported() from public, anon, authenticated;
 drop trigger if exists on_report on public.reports;
 create trigger on_report after insert on public.reports for each row execute function public.hide_reported();
+
+-- D3 계정 삭제: 사진은 클라이언트가 먼저 Storage API로 photos/{내 id}/ 를 다 지운다 (storage.objects는 SQL로 못 지움) → delete_me()
+-- 내가 주인인데 다른 멤버가 있는 trip은 그 멤버에게 넘긴다 (안 그러면 cascade로 남의 일정·기록까지 사라짐). 나머지는 auth.users cascade
+create or replace function public.delete_me() returns void
+language plpgsql security definer set search_path = '' as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then raise exception 'not signed in'; end if;
+  with heir as (
+    select distinct on (trip_id) trip_id, user_id from public.trip_members m
+    where user_id <> me and exists (select 1 from public.trips t where t.id = m.trip_id and t.owner_id = me)
+    order by trip_id, role = 'owner' desc, user_id
+  ), moved as (
+    update public.trips t set owner_id = heir.user_id from heir where t.id = heir.trip_id returning t.id, t.owner_id
+  )
+  update public.trip_members m set role = 'owner' from moved where m.trip_id = moved.id and m.user_id = moved.owner_id;
+  delete from auth.users where id = me;
+end $$;
+revoke execute on function public.delete_me() from public, anon;
+grant execute on function public.delete_me() to authenticated;

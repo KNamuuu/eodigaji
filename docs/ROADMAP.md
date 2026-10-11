@@ -203,9 +203,11 @@ RLS 원칙: trips/items는 멤버만, posts는 `is_public or 작성자 or 같은
   - 알아둘 것: 실제 폰 공유 시트는 배포본에서 손으로 확인 필요 (점검은 share 흉내)
   - 훅: "전국 몇 % 가봤는지 한 장으로"
 
-- [ ] **D3. 약관·개인정보·계정 삭제**
+- [x] **D3. 약관·개인정보·계정 삭제**
   - 할 일: 이용약관·개인정보 처리방침 페이지, 계정 삭제(기록·사진 같이 삭제)
   - 완료 기준: 계정 삭제 후 Storage에 사진이 안 남음
+  - 결과 (2026-10-12): `/terms`·`/privacy` (`src/pages/Legal.jsx`, 시행일 2026-10-12, 모으는 정보·EXIF 제거·보관=계정 삭제까지·맡기는 곳 Supabase 도쿄·Vercel 미국·카카오/구글, 연락처 1곳). 로그인 화면 아래 동의 문구 링크. `/me` 맨 아래 접힌 "계정 삭제" → 확인 → Storage API로 `photos/{내 id}/` 전부 지움(SQL로는 storage.objects 못 지움) → `delete_me()` RPC: 내가 주인인데 다른 멤버가 있는 trip은 그 멤버에게 owner 넘김(남의 일정·기록 보호) → `auth.users` 삭제(나머지는 cascade) → 로그아웃 후 첫 화면. `d3.mjs` 통과(390: 약관·개인정보 가로 넘침 없음, 혼자 여행+같이 쓰는 여행+남의 여행에 쓴 기록 → 삭제 후 로그인 안 됨·사진 3장 서명 URL 안 열림·Storage 0건(SQL 확인)·같이 쓰던 여행 a가 owner·a 기록 남음·내 기록 사라짐), `c2`·`c3`·`d2` 회귀 통과
+  - 알아둘 것: d3.mjs는 지울 계정을 실행마다 SQL로 새로 만들어야 함(스크립트 머리말). trip 삭제 화면은 아직 없어서 C1의 "trip 지워도 사진 남음"은 계정 삭제로만 정리됨
   - 훅: "사진 받는 서비스면 이건 꼭 있어야 한다"
 
 - [ ] **D4. 사진으로 채운 내 지도 + 확대·이동**
@@ -237,7 +239,7 @@ RLS 원칙: trips/items는 멤버만, posts는 `is_public or 작성자 or 같은
 
 ## 8. 나중에 (지금은 안 만듦)
 
-- **구글 로그인 마무리** — 카카오는 2026-10-12 배포본에서 실제 로그인 확인(이메일은 비즈앱 전환 후 선택 동의, Supabase는 `account_email`을 항상 요청함). 구글도 2026-10-12 실제 로그인 확인. 단 Google 인증 플랫폼이 "테스트 중"이라 테스트 사용자만 로그인됨 → D3에서 `/privacy`·`/terms` 만든 뒤 브랜딩에 링크 넣고 [앱 게시]. 콜백: `https://ltbhffozitpbsxjbnbnd.supabase.co/auth/v1/callback`
+- **구글 로그인 마무리** — 카카오는 2026-10-12 배포본에서 실제 로그인 확인(이메일은 비즈앱 전환 후 선택 동의, Supabase는 `account_email`을 항상 요청함). 구글도 2026-10-12 실제 로그인 확인. 단 Google 인증 플랫폼이 "테스트 중"이라 테스트 사용자만 로그인됨 → D3로 `/privacy`·`/terms` 생김. 남은 일: Google 인증 플랫폼 브랜딩에 홈 `https://eodigaji.vercel.app`·개인정보 `/privacy`·약관 `/terms` 넣고 [앱 게시]. 콜백: `https://ltbhffozitpbsxjbnbnd.supabase.co/auth/v1/callback`
 
 - 제휴 장소 노출·쿠폰 → D1 이후 장소별 기록이 쌓이면 다시 검토
 - 출발지 기준 거리 필터 → 지역 좌표(`cx`,`cy`)는 이미 있으니 필요해지면 B2에 추가

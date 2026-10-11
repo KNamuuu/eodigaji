@@ -56,6 +56,25 @@ export default function Me() {
   }, [data, visited]);
   const canShare = card && navigator.canShare?.({ files: [card.file] });
 
+  // 계정 삭제: 사진(photos/{내 id}/{기록}/…)부터 Storage API로 지우고 → delete_me()가 계정·기록을 지움 (같이 쓰던 trip은 남은 멤버에게)
+  const [bye, setBye] = useState("");
+  async function deleteMe() {
+    if (!confirm("계정을 지울까요? 내 기록과 사진이 모두 지워지고 되돌릴 수 없어요. 친구와 같이 쓰던 여행은 친구에게 넘어가요.")) return;
+    setBye("지우는 중…");
+    const ph = sb.storage.from("photos"), fail = (e) => setBye("삭제 실패: " + e.message + " · 다시 눌러 주세요");
+    // ponytail: 폴더(기록) 1000개·폴더당 1000장까지. 넘으면 offset으로 반복
+    const { data: dirs, error } = await ph.list(uid, { limit: 1000 });
+    if (error) return fail(error);
+    const lists = await Promise.all(dirs.map((d) => ph.list(`${uid}/${d.name}`, { limit: 1000 })));
+    const bad = lists.find((l) => l.error); if (bad) return fail(bad.error);
+    const paths = lists.flatMap((l, i) => l.data.map((f) => `${uid}/${dirs[i].name}/${f.name}`));
+    for (let i = 0; i < paths.length; i += 1000) { const { error } = await ph.remove(paths.slice(i, i + 1000)); if (error) return fail(error); }
+    const res = await sb.rpc("delete_me");
+    if (res.error) return fail(res.error);
+    await sb.auth.signOut({ scope: "local" });
+    go("/", { replace: true });
+  }
+
   const open = (r) => go("/region/" + r.id);
   const regionProps = (r, i) => {
     const v = visited.get(i);
@@ -94,6 +113,12 @@ export default function Me() {
               <a className={canShare ? "btn sub" : "btn"} href={card.url} download="eodigaji-map.png">이미지 저장</a>
             </div>}
           </>}
+        {session && <details id="bye">
+          <summary>계정 삭제</summary>
+          <p className="help">내 기록·사진·신고 내역이 바로 지워지고 되돌릴 수 없어요. 친구와 같이 쓰던 여행은 남은 친구에게 넘어가요. <Link to="/privacy">개인정보 처리방침</Link> · <Link to="/terms">이용약관</Link></p>
+          <button className="btn sub" disabled={bye === "지우는 중…"} onClick={deleteMe}>계정 삭제</button>
+          <p className="note" aria-live="polite">{bye}</p>
+        </details>}
       </section>
     </Layout>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import { useRegions } from "../regions.js";
@@ -42,6 +42,7 @@ export default function Login() {
           <button className="btn sub" disabled={busy}>로그인 링크 보내기</button>
         </form>
         <p className="note" aria-live="polite">{note}</p>
+        <p className="note">계속하면 <Link to="/terms">이용약관</Link>과 <Link to="/privacy">개인정보 처리방침</Link>에 동의하는 것으로 봐요.</p>
       </section>
     </Layout>
   );

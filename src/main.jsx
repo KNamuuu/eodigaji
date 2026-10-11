@@ -6,6 +6,7 @@ import Me from "./pages/Me.jsx";
 import Login from "./pages/Login.jsx";
 import Invite from "./pages/Invite.jsx";
 import Region from "./pages/Region.jsx";
+import Legal from "./pages/Legal.jsx";
 import "./index.css";
 
 // 옛 초대 링크 /?plan=id → /plan/id
@@ -22,6 +23,8 @@ createRoot(document.getElementById("root")).render(
       <Route path="/region/:id" element={<Region />} />
       <Route path="/login" element={<Login />} />
       <Route path="/invite/:token" element={<Invite />} />
+      <Route path="/terms" element={<Legal />} />
+      <Route path="/privacy" element={<Legal />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </BrowserRouter>,
