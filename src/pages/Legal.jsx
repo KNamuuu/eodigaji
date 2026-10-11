@@ -4,7 +4,7 @@ import KoreaMap from "../components/KoreaMap.jsx";
 import { useRegions } from "../regions.js";
 
 // /terms 이용약관 · /privacy 개인정보 처리방침 (구글 앱 게시 브랜딩에 이 주소를 넣는다)
-const CONTACT = "knamuuu@naver.com", SINCE = "2026년 10월 12일";
+const CONTACT = "iptime1199@gmail.com", SINCE = "2026년 10월 12일";
 
 const terms = <>
   <h3>1. 서비스</h3>
