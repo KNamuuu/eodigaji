@@ -14,13 +14,13 @@ function reachPerSpeed(power) {
 }
 
 export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPick, outRef }) {
-  const dartRef = useRef(), flightsRef = useRef(), shadowRef = useRef(), targetRef = useRef(),
+  const dartRef = useRef(), flightsRef = useRef(), shadowRef = useRef(),
     ringRef = useRef(), bandRef = useRef(), hintRef = useRef(), rippleRef = useRef();
   const MAP_H = data.h, REST = { x: 200, y: MAP_H + 46 };
   const FAR = REST.y - 10; // 힘 100% = 지도 맨 위
 
   useEffect(() => {
-    const svg = svgRef.current, target = targetRef.current, ring = ringRef.current, band = bandRef.current;
+    const svg = svgRef.current, ring = ringRef.current, band = bandRef.current;
     let aim = null, wind = { x: 0, y: 0 }, windStatus, busy = false;
     const show = (el, on) => on ? el.removeAttribute("hidden") : el.setAttribute("hidden", ""); // SVG 요소는 .hidden 속성이 없음
     const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, attrs[k]); };
@@ -40,7 +40,7 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       set(shadow, { cx: x, cy: y, rx: 5 + z / 25, opacity: z > 0 ? Math.max(0.08, 0.3 - z / 1500) : 0 });
     }
     function resetDart() {
-      [target, ring, band].forEach((el) => show(el, false));
+      [ring, band].forEach((el) => show(el, false));
       show(hintRef.current, true);
       dartRef.current.removeAttribute("visibility");
       drawDart(REST.x, REST.y);
@@ -49,7 +49,7 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       const a = Math.random() * Math.PI * 2, s = Math.random() * 3; // m/s
       wind = { x: Math.cos(a) * s * 45, y: Math.sin(a) * s * 45 };
       const arrow = "→↘↓↙←↖↑↗"[Math.round(a / (Math.PI / 4)) % 8];
-      windStatus = ["어디서든 누르고 아래로 당겼다 놓아요", `바람 ${arrow} ${s.toFixed(1)}m/s · 점선 원은 바람 없을 때 떨어질 곳`];
+      windStatus = ["어디서든 누르고 아래로 당겼다 놓아요", `바람 ${arrow} ${s.toFixed(1)}m/s`];
       setStatus(windStatus);
     }
     const reach = (power) => NEAR + (FAR - NEAR) * power; // 힘 → 거리 직선 대응 (출발점 기준)
@@ -77,17 +77,12 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       const rad = ang * Math.PI / 180;
       set(band, { x1: p.x, y1: p.y, x2: bx - 40 * Math.sin(rad), y2: by + 40 * Math.cos(rad) }); show(band, true);
       const pulled = len >= MIN_PULL;
-      if (pulled) {
-        const tx = REST.x + Math.cos(a) * reach(power), ty = REST.y + Math.sin(a) * reach(power);
-        set(target, { cx: tx, cy: ty });
-      }
-      show(target, pulled);
       setStatus(pulled ? [`힘 ${Math.round(power * 100)}%`, "놓으면 날아가요"] : windStatus);
     }
     function up() {
       if (!aim) return;
       const pull = aim; aim = null;
-      [target, ring, band].forEach((el) => show(el, false));
+      [ring, band].forEach((el) => show(el, false));
       const len = Math.hypot(pull.x, pull.y);
       if (len < MIN_PULL) { resetDart(); setStatus(windStatus); return; }
       throwDart(pull, len / MAX_PULL);
@@ -175,7 +170,6 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
     <text ref={hintRef} className="dart-hint" x={REST.x + 20} y={REST.y + 26}>어디서든 잡고 아래로</text>
     <g className="dartLayer">
       <circle ref={rippleRef} className="ripple" r="2" hidden />
-      <circle ref={targetRef} id="target" r="8" strokeDasharray="3 3" hidden />
       <line ref={bandRef} id="band" strokeWidth="1.5" hidden />
       <circle ref={ringRef} id="ring" r="9" hidden />
       <ellipse ref={shadowRef} id="shadow" rx="6" ry="3" opacity="0" />

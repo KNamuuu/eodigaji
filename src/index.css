@@ -80,7 +80,6 @@ a.who { font-weight: 600; color: var(--color-accent); }
 #map .dartLayer { pointer-events: none; }
 #dokdo { fill: var(--color-ink-2); }
 #shadow { fill: var(--color-ink); }
-#target { fill: none; stroke: var(--color-accent); stroke-width: 1.5; }
 #band { stroke: var(--color-accent-soft); stroke-linecap: round; }
 #ring { fill: none; stroke: var(--color-accent); stroke-width: 2; }
 .ripple { fill: none; stroke: var(--color-accent-soft); stroke-width: 1.5; }
