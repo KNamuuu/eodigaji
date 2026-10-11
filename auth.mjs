@@ -16,6 +16,12 @@ for (const [tag, width, height] of [["mobile", 390, 844], ["pc", 1280, 800]]) {
   await page.click("a.who"); await page.waitForSelector("#login");
   assert.match(page.url(), /\/login\?next=%2F/);
   await page.screenshot({ path: `${dir}/${tag}-2-login.png`, fullPage: true });
+  // 지난 실패의 ?error=가 붙은 페이지에서 다시 로그인 → 돌아올 주소엔 error가 없어야 함 (있으면 supabase-js가 토큰을 버림)
+  await page.goto(B + "/login?next=" + encodeURIComponent("/me?error=invalid_scope&error_description=x&keep=1"));
+  await page.route("**/auth/v1/authorize**", (r) => r.abort());
+  const [req] = await Promise.all([page.waitForRequest("**/auth/v1/authorize**"), page.click("#login .btn.kakao")]);
+  assert.equal(new URL(req.url()).searchParams.get("redirect_to"), B + "/me?keep=1");
+  await page.unroute("**/auth/v1/authorize**"); await page.goto(B);
   // 로그인 상태(가짜 세션) → 새로고침해도 유지
   await page.evaluate((s) => localStorage.setItem("sb-ltbhffozitpbsxjbnbnd-auth-token", JSON.stringify(s)), fake);
   await page.goto(B); await page.waitForSelector("div.who span");

@@ -10,7 +10,10 @@ export default function Login() {
   const data = useRegions(), session = useSession(), nav = useNavigate();
   const n = useSearchParams()[0].get("next"), next = /^\/(?![/\\])/.test(n) ? n : "/"; // 내 사이트 주소만 (//evil.com 막기)
   const [email, setEmail] = useState(""), [note, setNote] = useState(""), [busy, setBusy] = useState(false);
-  const redirectTo = location.origin + next;
+  // 지난 로그인 실패가 남긴 ?error=…를 돌아올 주소에서 뺀다. 남아 있으면 supabase-js가 돌아온 토큰을 오류로 보고 버린다
+  const back = new URL(next, location.origin);
+  for (const k of ["error", "error_code", "error_description"]) back.searchParams.delete(k);
+  const redirectTo = back.href;
 
   useEffect(() => { if (session) nav(next, { replace: true }); }, [session]);
 
