@@ -13,7 +13,7 @@ function reachPerSpeed(power) {
   return sum;
 }
 
-export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPick }) {
+export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPick, outRef }) {
   const dartRef = useRef(), flightsRef = useRef(), shadowRef = useRef(), aimRef = useRef(), targetRef = useRef(),
     ringRef = useRef(), bandRef = useRef(), hintRef = useRef(), rippleRef = useRef();
   const MAP_H = data.h, REST = { x: 200, y: MAP_H + 46 };
@@ -131,6 +131,12 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
     function land(x, y, ang) {
       const i = regionAt(x, y);
       busy = false; setBusy(false);
+      if (i >= 0 && outRef.current.has(i)) { // 필터에서 뺀 곳: 꽂힌 채 잠깐 보여주고 다시
+        drawDart(x, y, 0, ang, { scale: 0.8, lean: 0.6 });
+        setStatus([data.regions[i].name, "필터에서 뺀 곳이에요 · 다시 던져보세요"]);
+        busy = true; setBusy(true);
+        return setTimeout(() => { busy = false; setBusy(false); if (dartRef.current) { resetDart(); newWind(); } }, 1200);
+      }
       if (i >= 0) {
         navigator.vibrate?.(20);
         // 비스듬히 박힌 채(lean) 감쇠 진동으로 부르르

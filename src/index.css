@@ -68,6 +68,7 @@ a.who { font-weight: 600; color: var(--color-accent); }
 @media (min-width: 768px) { #map, #map:has(.dartLayer) { max-height: none; } }
 #map path { fill: var(--color-paper); stroke: var(--color-land-line); stroke-width: .5; transition: fill .9s var(--ease-out); }
 #map path.flash { fill: var(--color-accent-soft); transition: none; }
+#map path.out { fill: var(--color-zone); stroke-opacity: .4; }
 #map path.picked { fill: var(--color-accent); transition: none; }
 #map .label { font: 700 14px var(--font-body); fill: var(--color-ink); text-anchor: middle; paint-order: stroke; stroke: var(--color-paper); stroke-width: 4px; pointer-events: none; }
 #map .zone { fill: var(--color-zone); }
@@ -106,6 +107,17 @@ a.who { font-weight: 600; color: var(--color-accent); }
 .btn.sub { color: var(--color-ink); background: var(--color-paper); box-shadow: inset 0 0 0 1px var(--color-rule); }
 @media (hover: hover) { .btn.sub:hover:not(:disabled) { background: var(--color-paper-2); } }
 #home .btn:first-of-type { margin-top: var(--space-md); }
+
+/* ── 뽑기 필터 ── */
+.filter { margin-top: var(--space-md); }
+.filter summary { padding: var(--space-xs) 0; font-size: 14px; font-weight: 600; color: var(--color-accent); cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin-top: var(--space-xs); }
+.chips button { min-width: 44px; height: 36px; padding: 0 var(--space-sm); font-size: 14px; color: var(--color-ink-2); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--color-rule); }
+.chips button[aria-pressed="true"] { color: var(--color-paper); background: var(--color-accent); box-shadow: none; }
+@media (hover: hover) { .chips button[aria-pressed="false"]:hover:not(:disabled) { color: var(--color-ink); background: var(--color-paper-2); } }
+.chips button:disabled { opacity: .5; cursor: default; }
+.check { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-sm); font-size: 14px; }
+.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); }
 
 /* ── 일정 ── */
 .back { display: inline-flex; align-items: center; gap: var(--space-2xs); margin: 0 0 var(--space-sm) calc(-1 * var(--space-xs)); padding: var(--space-xs); font-size: 14px; color: var(--color-ink-2); border-radius: var(--radius); }
