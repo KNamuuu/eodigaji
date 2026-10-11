@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
+import { useRegions } from "../regions.js";
 
 // ── 다트: 아무 데나 누르고 아래로 끌었다 놓으면 날아감. 지도는 바닥에 깔린 판이라고 보고 높이(z)·중력·바람 시뮬레이션 ──
 // 애니메이션은 매 프레임 React를 거치지 않고 SVG 속성을 직접 바꾼다.
 // 물리는 고정 간격(DT)으로 돌려서, 바람 0이면 예상 낙하 지점에 정확히 떨어진다.
 export const ZONE_H = 120; // 지도 아래 던지는 판 높이
-const MAX_PULL = 130, MIN_PULL = 8, DRAG = 0.2, G = 1600, DT = 1 / 120, K = 0.12, NEAR = 20;
+const MAX_PULL = 130, MIN_PULL = 8, DRAG = 0.2, G = 1600, DT = 1 / 120, K = 0.12, NEAR = 20, GAUGE_W = 160;
 const vz0 = (power) => 450 + 250 * power;
 // 바람 0일 때 속도 1로 던지면 가는 거리 (공기저항 감안). 거리는 속도에 비례하니 필요한 속도 = 거리 / 이 값
 function reachPerSpeed(power) {
@@ -15,12 +16,12 @@ function reachPerSpeed(power) {
 
 export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPick, outRef }) {
   const dartRef = useRef(), flightsRef = useRef(), shadowRef = useRef(),
-    ringRef = useRef(), bandRef = useRef(), hintRef = useRef(), rippleRef = useRef();
+    gaugeRef = useRef(), fillRef = useRef(), hintRef = useRef(), rippleRef = useRef();
   const MAP_H = data.h, REST = { x: 200, y: MAP_H + 46 };
   const FAR = REST.y - 10; // 힘 100% = 지도 맨 위
 
   useEffect(() => {
-    const svg = svgRef.current, ring = ringRef.current, band = bandRef.current;
+    const svg = svgRef.current, gauge = gaugeRef.current, fill = fillRef.current;
     let aim = null, wind = { x: 0, y: 0 }, windStatus, busy = false;
     const show = (el, on) => on ? el.removeAttribute("hidden") : el.setAttribute("hidden", ""); // SVG 요소는 .hidden 속성이 없음
     const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, attrs[k]); };
@@ -40,7 +41,7 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       set(shadow, { cx: x, cy: y, rx: 5 + z / 25, opacity: z > 0 ? Math.max(0.08, 0.3 - z / 1500) : 0 });
     }
     function resetDart() {
-      [ring, band].forEach((el) => show(el, false));
+      show(gauge, false);
       show(hintRef.current, true);
       dartRef.current.removeAttribute("visibility");
       drawDart(REST.x, REST.y);
@@ -60,7 +61,7 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       aim = { x: 0, y: 0, sx: p.x, sy: p.y }; // 누른 점 기준으로 당긴 만큼이 힘
       svg.setPointerCapture(e.pointerId);
       show(hintRef.current, false);
-      set(ring, { cx: p.x, cy: p.y }); show(ring, true);
+      set(fill, { width: 0 }); show(gauge, true);
     }
     function move(e) {
       if (!aim) return;
@@ -72,17 +73,14 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       const a = Math.atan2(-dy, -dx), ang = a * 180 / Math.PI + 90, power = Math.hypot(dx, dy) / MAX_PULL;
       const bx = REST.x + dx * DRAG, by = REST.y + dy * DRAG; // 다트는 조금만 끌려와 화면 안에 머묾
       drawDart(bx, by, 0, ang);
-      set(ring, { cx: p.x, cy: p.y });
-      // 고무줄: 손가락 → 다트 꼬리
-      const rad = ang * Math.PI / 180;
-      set(band, { x1: p.x, y1: p.y, x2: bx - 40 * Math.sin(rad), y2: by + 40 * Math.cos(rad) }); show(band, true);
+      set(fill, { width: GAUGE_W * power }); gauge.classList.toggle("max", power > 0.99);
       const pulled = len >= MIN_PULL;
       setStatus(pulled ? [`힘 ${Math.round(power * 100)}%`, "놓으면 날아가요"] : windStatus);
     }
     function up() {
       if (!aim) return;
       const pull = aim; aim = null;
-      [ring, band].forEach((el) => show(el, false));
+      show(gauge, false);
       const len = Math.hypot(pull.x, pull.y);
       if (len < MIN_PULL) { resetDart(); setStatus(windStatus); return; }
       throwDart(pull, len / MAX_PULL);
@@ -170,20 +168,60 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
     <text ref={hintRef} className="dart-hint" x={REST.x + 20} y={REST.y + 26}>어디서든 잡고 아래로</text>
     <g className="dartLayer">
       <circle ref={rippleRef} className="ripple" r="2" hidden />
-      <line ref={bandRef} id="band" strokeWidth="1.5" hidden />
-      <circle ref={ringRef} id="ring" r="9" hidden />
+      {/* 힘 게이지: 당기는 동안만 다트 아래에 */}
+      <g ref={gaugeRef} id="gauge" hidden>
+        <rect x={REST.x - GAUGE_W / 2} y={MAP_H + 16} width={GAUGE_W} height="6" rx="3" />
+        <rect ref={fillRef} className="fill" x={REST.x - GAUGE_W / 2} y={MAP_H + 16} width="0" height="6" rx="3" />
+      </g>
       <ellipse ref={shadowRef} id="shadow" rx="6" ry="3" opacity="0" />
       {/* 촉 끝이 기준점(0,0) = 판정 지점. 위가 앞쪽, 길이 44 */}
-      <g id="dart" ref={dartRef}>
-        <g ref={flightsRef} className="dart-flights">
-          <path d="M0 29 L-8 39 L-7.5 44 L0 41Z" />
-          <path className="far" d="M0 29 L5 38 L4.8 42.5 L0 41Z" />
-        </g>
-        <rect className="dart-body" x="-0.8" y="21" width="1.6" height="20" />
-        <rect className="dart-body" x="-2.6" y="9" width="5.2" height="13" rx="2" />
-        <path className="dart-grip" d="M-2.6 12.5H2.6M-2.6 15.5H2.6M-2.6 18.5H2.6" />
-        <path className="dart-tip" d="M0 0 L1 9.5 L-1 9.5Z" />
-      </g>
+      <g id="dart" ref={dartRef}><DartShape flightsRef={flightsRef} /></g>
     </g>
   </>;
+}
+
+const DartShape = ({ flightsRef }) => <>
+  <g ref={flightsRef} className="dart-flights">
+    <path d="M0 29 L-8 39 L-7.5 44 L0 41Z" />
+    <path className="far" d="M0 29 L5 38 L4.8 42.5 L0 41Z" />
+  </g>
+  <rect className="dart-body" x="-0.8" y="21" width="1.6" height="20" />
+  <rect className="dart-body" x="-2.6" y="9" width="5.2" height="13" rx="2" />
+  <path className="dart-grip" d="M-2.6 12.5H2.6M-2.6 15.5H2.6M-2.6 18.5H2.6" />
+  <path className="dart-tip" d="M0 0 L1 9.5 L-1 9.5Z" />
+</>;
+
+// 다트 탭 처음 열 때 방법 안내 (손가락이 지도에서 당겼다 놓는 장면 반복). "다시 보지 않기"는 이 브라우저에만 저장
+const GUIDE_OFF = "dartGuideOff";
+export function DartGuide() {
+  const data = useRegions();
+  const ref = useRef();
+  useEffect(() => {
+    let seen = false;
+    try { seen = localStorage.getItem(GUIDE_OFF) === "1"; } catch {}
+    if (!seen) ref.current.showModal();
+  }, []);
+  const remember = (e) => { try { e.target.checked ? localStorage.setItem(GUIDE_OFF, "1") : localStorage.removeItem(GUIDE_OFF); } catch {} };
+  return (
+    <dialog ref={ref} className="guide" aria-labelledby="guideTitle">
+      <svg viewBox="0 0 240 232" aria-hidden="true">
+        <rect className="sea" width="240" height="232" />
+        {/* 실제 지도를 1/4로 줄여서 */}
+        <path className="land" transform="translate(70 4) scale(.25)" d={data?.regions.map((r) => r.d).join("")} />
+        <rect className="zone" x="8" y="156" width="224" height="68" rx="6" />
+        <rect className="g-track" x="70" y="164" width="100" height="5" rx="2.5" />
+        <rect className="g-fill" x="70" y="164" width="100" height="5" rx="2.5" />
+        <g className="g-dart"><g transform="translate(120 174)"><DartShape /></g></g>
+        <g className="g-finger"><circle cx="136" cy="56" r="11" /></g>
+      </svg>
+      <h2 id="guideTitle">다트 던지는 법</h2>
+      <ol>
+        <li>지도 아무 데나 손가락을 대고</li>
+        <li>아래로 당기면 게이지가 차요 (많이 당길수록 멀리)</li>
+        <li>놓으면 반대쪽으로 날아가요</li>
+      </ol>
+      <label className="check"><input type="checkbox" onChange={remember} /> 다시 보지 않기</label>
+      <button className="btn" autoFocus onClick={() => ref.current.close()}>알겠어요</button>
+    </dialog>
+  );
 }

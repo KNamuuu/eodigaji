@@ -80,14 +80,15 @@ a.who { font-weight: 600; color: var(--color-accent); }
 #map .dartLayer { pointer-events: none; }
 #dokdo { fill: var(--color-ink-2); }
 #shadow { fill: var(--color-ink); }
-#band { stroke: var(--color-accent-soft); stroke-linecap: round; }
-#ring { fill: none; stroke: var(--color-accent); stroke-width: 2; }
+#gauge rect { fill: var(--color-paper); }
+#gauge .fill { fill: var(--color-accent); }
+#gauge.max .fill { fill: var(--color-accent-hover); }
 .ripple { fill: none; stroke: var(--color-accent-soft); stroke-width: 1.5; }
 .dart-hint { font: 600 12px var(--font-body); fill: var(--color-ink-2); pointer-events: none; }
 #dart path { stroke: none; transition: none; } /* #map path 기본값(흰 땅) 덮기 */
-#dart .dart-tip { fill: var(--color-ink-2); } #dart .dart-body { fill: var(--color-accent); }
-#dart .dart-grip { fill: none; stroke: var(--color-paper); stroke-width: .7; opacity: .6; }
-#dart .dart-flights path { fill: var(--color-accent-wing); } #dart .dart-flights .far { fill: var(--color-accent-soft); }
+.dart-tip { fill: var(--color-ink-2); } .dart-body { fill: var(--color-accent); }
+.dart-grip { fill: none; stroke: var(--color-paper); stroke-width: .7; opacity: .6; }
+.dart-flights path { fill: var(--color-accent-wing); } .dart-flights .far { fill: var(--color-accent-soft); }
 #status { position: absolute; top: var(--space-sm); left: var(--space-sm); max-width: calc(100% - 120px); padding: var(--space-xs) var(--space-sm); background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius); box-shadow: 0 2px 8px var(--color-shadow); font-size: 15px; font-weight: 700; pointer-events: none; }
 #status small { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--color-ink-2); }
 @media (min-width: 768px) { #status { top: var(--space-lg); left: var(--space-lg); max-width: 320px; } }
@@ -184,11 +185,32 @@ button.add { margin-top: var(--space-2xs); padding: var(--space-xs) 0; font-size
 .magic input:focus-visible { outline: none; border-color: var(--color-accent); }
 #invite { margin-top: var(--space-lg); }
 
+/* ── 다트 안내 모달 ── */
+.guide { width: min(340px, calc(100vw - 32px)); padding: var(--space-lg); border: 0; border-radius: var(--radius-map); background: var(--color-paper); color: var(--color-ink); box-shadow: 0 8px 32px var(--color-shadow); }
+.guide::backdrop { background: oklch(0% 0 0 / .45); }
+.guide svg { display: block; width: 100%; border-radius: var(--radius); }
+.guide .sea { fill: var(--color-sea); }
+.guide .zone { fill: var(--color-zone); }
+.guide .land { fill: var(--color-paper); stroke: var(--color-land-line); stroke-width: 2; }
+.guide h2 { margin: var(--space-md) 0 var(--space-xs); font-size: 18px; }
+.guide ol { margin: 0; padding-left: 1.2em; font-size: 15px; line-height: 1.6; color: var(--color-ink-2); }
+.guide .check { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-md); font-size: 14px; color: var(--color-ink-2); cursor: pointer; }
+.guide .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); }
+.g-track { fill: var(--color-paper); }
+.g-fill { fill: var(--color-accent); transform-box: fill-box; transform-origin: left; animation: g-fill 2.8s infinite; }
+.g-dart { transform-box: fill-box; transform-origin: center; animation: g-dart 2.8s infinite; }
+.g-finger { fill: var(--color-ink); fill-opacity: .25; stroke: var(--color-ink); stroke-opacity: .5; stroke-width: 1.5; animation: g-finger 2.8s infinite; }
+/* 0~12% 손가락이 지도에 닿음 → 45%까지 아래로 당김 → 55% 놓음 → 다트 날아감 → 다시 */
+@keyframes g-finger { 0% { opacity: 0; transform: none; } 12% { opacity: 1; transform: none; } 45%, 52% { opacity: 1; transform: translateY(34px); } 58%, 100% { opacity: 0; transform: translateY(34px); } }
+@keyframes g-dart { 0%, 12% { opacity: 1; transform: none; } 45%, 55% { opacity: 1; transform: translateY(8px); } 75% { opacity: 0; transform: translateY(-110px) scale(1.3); } 76%, 88% { opacity: 0; transform: none; } 100% { opacity: 1; transform: none; } }
+@keyframes g-fill { 0%, 12% { transform: scaleX(0); } 45%, 55% { transform: scaleX(1); } 58%, 100% { transform: scaleX(0); } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; }
   #planBody.loading { animation: none; }
   .card { transition-delay: 0s !important; animation: none !important; }
   .btn:active:not(:disabled) { transform: none; }
+  .g-fill, .g-dart, .g-finger { animation-play-state: paused; animation-delay: -1.4s; } /* 당긴 순간에 멈춘 그림 */
 }
 
 /* ── 내 여행 (/me) ── */

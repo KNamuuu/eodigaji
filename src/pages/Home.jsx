@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
-import Dart, { ZONE_H } from "../components/Dart.jsx";
+import Dart, { ZONE_H, DartGuide } from "../components/Dart.jsx";
 import Cards from "../components/Cards.jsx";
 import { useRegions } from "../regions.js";
 import { sb, useSession } from "../supabase.js";
@@ -10,7 +10,7 @@ import { sb, useSession } from "../supabase.js";
 const HELP = {
   roulette: "버튼을 누르면 지도 위를 빠르게 돌다가 한 곳에 멈춰요.",
   cards: "카드 3장을 섞어 펼쳐요. 하나씩 뒤집어 보고 갈 곳을 골라요.",
-  dart: "지도 어디서든 누른 채 아래로 당겼다 놓으면 다트가 날아가요. 점선 원이 떨어질 곳이에요 — 바람만큼 밀려요.",
+  dart: "지도 어디서든 누른 채 아래로 당겼다 놓으면 다트가 날아가요. 많이 당길수록 멀리 가고, 바람만큼 밀려요.",
 };
 const pickedStatus = (r) => [r.name, `${r.prov} · 여기로 결정!`];
 const idleStatus = ["어디로 갈까?", "버튼을 누르면 지도에 불이 들어와요"];
@@ -103,6 +103,7 @@ export default function Home() {
         <div className="result desk" id="result">
           {picked ? <><p className="prov">{picked.prov}</p><p className="name">{picked.name}</p></> : <p className="empty">아직 고른 곳이 없어요</p>}
         </div>
+        {mode === "dart" && <DartGuide />}
         {data && mode === "cards" && <Cards key={round} data={data} out={out} pathsRef={pathsRef} setBusy={setBusy} setStatus={setStatus} onPick={choose} />}
         <button id="go" ref={goRef} className="btn" hidden={!picked} onClick={() => nav("/plan?r=" + picked.id)}>여기로 1박 2일 일정 짜기</button>
         <button id="spin" className={picked ? "btn sub" : "btn"} hidden={mode !== "roulette"} disabled={busy || !left} onClick={spin}>{spun ? "다시 돌리기" : "룰렛 돌리기"}</button>
