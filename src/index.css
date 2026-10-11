@@ -253,3 +253,6 @@ h2.title { margin: 0; }
 [data-view="region"] #map path { vector-effect: non-scaling-stroke; stroke-width: 1; } /* 확대해도 경계선 굵기 그대로 */
 [data-view="region"] #labels, [data-view="region"] #dokdo text { display: none; } /* 이름은 상태창에 */
 #region .tabs { margin-top: var(--space-md); }
+#card { margin-top: var(--space-xl); }
+#card img { display: block; width: 100%; max-width: 360px; margin: var(--space-md) auto 0; border-radius: var(--radius); outline: 1px solid var(--color-rule); }
+#card a.btn { text-decoration: none; }

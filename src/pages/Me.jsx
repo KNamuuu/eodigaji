@@ -4,6 +4,7 @@ import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import { useRegions } from "../regions.js";
 import { sb, useSession } from "../supabase.js";
+import { drawCard } from "../share.js";
 
 // 내 지도: 다녀온 곳 칠하기 + 내 여행 목록
 // 칠한 곳: PC는 마우스 올리면, 폰은 첫 탭에, 키보드는 포커스에 미리보기(이름·날짜·대표사진) → 클릭·두 번째 탭·Enter로 지역 피드
@@ -45,6 +46,16 @@ export default function Me() {
     });
   }, [visited]);
 
+  // 정복 지도 카드: 미리 PNG를 만들어 둠 (Safari는 share()가 눌린 순간에 바로 불려야 해서 누른 뒤에 그리면 막힘)
+  const [card, setCard] = useState(null);
+  useEffect(() => {
+    if (!data || !visited.size) return;
+    let url;
+    drawCard(data, new Set(visited.keys())).then((b) => { url = URL.createObjectURL(b); setCard({ url, file: new File([b], "eodigaji-map.png", { type: "image/png" }) }); });
+    return () => url && URL.revokeObjectURL(url);
+  }, [data, visited]);
+  const canShare = card && navigator.canShare?.({ files: [card.file] });
+
   const open = (r) => go("/region/" + r.id);
   const regionProps = (r, i) => {
     const v = visited.get(i);
@@ -76,6 +87,12 @@ export default function Me() {
             <ul className="trips">{trips.map((t) => (
               <li key={t.id}><Link to={"/plan/" + t.id}><b>{t.title || t.place}</b><small>{t.prov} {t.place}{t.status === "done" ? ` · 다녀옴 ${t.done_on}` : t.shared ? " · 같이 고치는 중" : ""}</small></Link></li>
             ))}</ul>
+            {card && <div id="card">
+              <h2 className="title">정복 지도 카드</h2>
+              <img src={card.url} alt={`${data.regions.length}곳 중 ${visited.size}곳 다녀온 내 지도`} />
+              {canShare && <button className="btn" onClick={() => navigator.share({ files: [card.file], title: "어디가지 · 내 정복 지도" }).catch(() => {})}>공유하기</button>}
+              <a className={canShare ? "btn sub" : "btn"} href={card.url} download="eodigaji-map.png">이미지 저장</a>
+            </div>}
           </>}
       </section>
     </Layout>
