@@ -1,1 +1,1 @@
-{ "framework": null, "outputDirectory": "public" }
+{ "framework": "vite", "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }] }

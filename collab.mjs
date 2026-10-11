@@ -25,7 +25,7 @@ await a.click("#go");
 await a.waitForSelector("#planBody .row");
 await a.fill("#planTitle", "친구랑 가는 여행");
 await a.click("#invite");
-await until(() => a.url().includes("?plan="), "초대 링크가 안 생김");
+await until(() => a.url().includes("/plan/"), "초대 링크가 안 생김");
 const link = a.url();
 assert.match(await a.textContent("#planNote"), /같이 고치는 중|복사/);
 await a.screenshot({ path: `${dir}/01-invited.png` });
