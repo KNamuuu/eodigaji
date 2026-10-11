@@ -224,3 +224,39 @@ create policy photo_read on storage.objects for select to authenticated
 drop policy if exists photo_delete on storage.objects;
 create policy photo_delete on storage.objects for delete to authenticated
   using (bucket_id = 'photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- D1 모두의 후기 + 신고: 신고는 한 사람이 한 기록에 한 번, 남의 공개 기록만. 3건이 모이면 hidden → 작성자·같은 trip 멤버 말고는 안 보임 (사진도 photo_read가 posts RLS를 타서 같이 막힘)
+alter table public.posts add column if not exists hidden boolean not null default false;
+drop policy if exists post_read on public.posts;
+create policy post_read on public.posts for select to authenticated
+  using ((is_public and not hidden) or user_id = (select auth.uid()) or public.is_member(trip_id));
+-- 작성자가 hidden을 직접 풀지 못하게: 수정은 한 줄·공개·장소 이름만
+revoke update on public.posts from authenticated, anon;
+grant update (body, is_public, place_name) on public.posts to authenticated;
+
+create table if not exists public.reports (
+  post_id uuid not null references public.posts(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  reason text not null check (reason in ('spam', 'abuse', 'privacy', 'etc')),
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+alter table public.reports enable row level security;
+drop policy if exists report_create on public.reports;
+create policy report_create on public.reports for insert to authenticated
+  with check (user_id = (select auth.uid()) and exists (
+    select 1 from public.posts p where p.id = post_id and p.is_public and not p.hidden and p.user_id <> (select auth.uid())));
+drop policy if exists report_self on public.reports;
+create policy report_self on public.reports for select to authenticated using (user_id = (select auth.uid()));
+
+create or replace function public.hide_reported() returns trigger
+  language plpgsql security definer set search_path = '' as $$
+begin
+  if (select count(*) from public.reports where post_id = new.post_id) >= 3 then
+    update public.posts set hidden = true where id = new.post_id;
+  end if;
+  return null;
+end $$;
+revoke execute on function public.hide_reported() from public, anon, authenticated;
+drop trigger if exists on_report on public.reports;
+create trigger on_report after insert on public.reports for each row execute function public.hide_reported();

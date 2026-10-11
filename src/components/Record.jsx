@@ -27,9 +27,17 @@ export async function withUrls(posts) {
   return (posts ?? []).map((p) => ({ ...p, urls: p.photos.map((x) => url[x]).filter(Boolean) }));
 }
 
+const REASONS = [["spam", "광고·도배"], ["abuse", "욕설·불쾌"], ["privacy", "개인정보 노출"], ["etc", "기타"]];
+
 // 기록 목록 (C3): 사진 2열 격자 → 누르면 크게(<dialog>), 내 기록은 수정(한 줄·공개)·삭제
-export function Posts({ posts, uid, reload }) {
-  const big = useRef(), [src, setSrc] = useState(""), [edit, setEdit] = useState(null), [err, setErr] = useState("");
+// all(D1 모두의 후기): 남의 기록엔 [신고] → 사유 고르기. 3명이 신고하면 DB 트리거가 숨긴다
+export function Posts({ posts, uid, reload, all }) {
+  const big = useRef(), [src, setSrc] = useState(""), [edit, setEdit] = useState(null), [err, setErr] = useState(""), [rep, setRep] = useState(null);
+  async function report(p, reason) {
+    const { error } = await sb.from("reports").insert({ post_id: p.id, reason });
+    if (error && error.code !== "23505") return setErr("신고 실패: " + error.message); // 23505 = 이미 신고함
+    setRep(null); setErr(""); reload();
+  }
   const show = (u) => { setSrc(u); big.current.showModal(); };
   async function save(e) {
     e.preventDefault();
@@ -62,11 +70,17 @@ export function Posts({ posts, uid, reload }) {
               </form>
             ) : <>
               {p.body && <p>{p.body}</p>}
-              <small>{p.trips?.done_on ?? p.created_at.slice(0, 10)} · {p.is_public ? "공개" : "비공개"}{p.user_id !== uid ? " · 같이 간 사람" : ""}</small>
+              <small>{p.trips?.done_on ?? p.created_at.slice(0, 10)} · {p.is_public ? "공개" : "비공개"}{p.user_id === uid ? (p.hidden ? " · 신고로 숨겨짐" : "") : all ? " · 다른 사람" : " · 같이 간 사람"}</small>
               {p.user_id === uid && <div className="acts">
                 <button type="button" onClick={() => setEdit({ id: p.id, body: p.body ?? "", is_public: p.is_public })}>수정</button>
                 <button type="button" onClick={() => del(p)}>삭제</button>
               </div>}
+              {all && p.user_id !== uid && (p.reported ? <small>신고했어요</small>
+                : rep === p.id ? <div className="acts" role="group" aria-label="신고 사유">
+                  {REASONS.map(([k, label]) => <button key={k} type="button" data-reason={k} onClick={() => report(p, k)}>{label}</button>)}
+                  <button type="button" onClick={() => setRep(null)}>취소</button>
+                </div>
+                : <div className="acts"><button type="button" onClick={() => setRep(p.id)}>신고</button></div>)}
             </>}
           </li>
         ))}

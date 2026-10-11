@@ -240,7 +240,7 @@ h2.title { margin: 0; }
 
 /* C3 지역 피드: 사진 누르면 크게, 내 기록 수정·삭제 */
 .photos button { display: block; padding: 0; border-radius: var(--radius); cursor: zoom-in; }
-.posts .acts { display: flex; gap: var(--space-sm); margin-top: var(--space-xs); }
+.posts .acts { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-xs); }
 .posts .acts button { padding: var(--space-2xs) 0; font-size: 13px; color: var(--color-ink-2); text-decoration: underline; text-underline-offset: 3px; }
 @media (hover: hover) { .posts .acts button:hover { color: var(--color-ink); } }
 .posts .edit input:not([type="checkbox"]) { display: block; width: 100%; min-height: 48px; margin-top: var(--space-xs); padding: var(--space-xs) var(--space-sm); font: inherit; font-size: 16px; color: var(--color-ink); background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius); }
@@ -252,3 +252,4 @@ h2.title { margin: 0; }
 .sub-title { margin: var(--space-xl) 0 0; font-size: 15px; font-weight: 700; }
 [data-view="region"] #map path { vector-effect: non-scaling-stroke; stroke-width: 1; } /* 확대해도 경계선 굵기 그대로 */
 [data-view="region"] #labels, [data-view="region"] #dokdo text { display: none; } /* 이름은 상태창에 */
+#region .tabs { margin-top: var(--space-md); }
