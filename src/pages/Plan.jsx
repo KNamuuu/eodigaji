@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
+import { SB_URL, SB_KEY } from "../supabase.js";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import { useRegions } from "../regions.js";
@@ -9,7 +10,6 @@ import { useRegions } from "../regions.js";
 // DB 규칙(RLS): x-plan-id 헤더로 보낸 id의 일정만 읽고 쓸 수 있다 → supabase/schema.sql
 // 변경이 생기면 broadcast로 "바뀜"만 알리고, 받은 쪽이 다시 불러온다.
 // ponytail: 입력칸에 커서가 있는 동안엔 남의 변경을 미뤘다가 포커스가 빠지면 반영. 글자 단위 동시 편집이 필요해지면 CRDT로.
-const SB_URL = "https://ltbhffozitpbsxjbnbnd.supabase.co", SB_KEY = "sb_publishable_A-x6BFiK_x60Z_KrZWVMAw_X9XKVjxN";
 const byTime = (a, b) => (a.time || "99").localeCompare(b.time || "99");
 const hex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
 const uuid = () => hex(16).replace(/(.{8})(.{4})(.{4})(.{4})/, "$1-$2-$3-$4-");
@@ -53,7 +53,7 @@ export default function Plan() {
 
   function connect(planId) {
     disconnect();
-    s.db = createClient(SB_URL, SB_KEY, { global: { headers: { "x-plan-id": planId } }, auth: { persistSession: false } });
+    s.db = createClient(SB_URL, SB_KEY, { global: { headers: { "x-plan-id": planId } }, auth: { persistSession: false, storageKey: "plan" } });
     s.chan = s.db.channel("plan-" + planId).on("broadcast", { event: "changed" }, () => { s.stale = true; refresh(); }).subscribe();
   }
   function disconnect() { clearTimeout(s.flushTimer); s.db?.removeAllChannels(); s.db = s.chan = null; s.dirty.clear(); s.titleDirty = s.stale = false; }
