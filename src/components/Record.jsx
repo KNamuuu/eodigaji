@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { sb } from "../supabase.js";
+import { thumbOf } from "../regions.js";
 
 // C1 다녀옴 + 기록: [다녀왔어요] → 날짜 · 사진 여러 장 · 한 줄 · 공개 여부 → 저장
 // 사진은 올리기 전에 브라우저에서 긴 변 1600px로 줄여 다시 인코딩한다 → EXIF(GPS 등)도 같이 사라진다
-// 저장: Storage photos/{내 id}/{기록 id}/{n}.webp → posts 행. 읽기 권한은 posts RLS를 따른다 (supabase/schema.sql)
-const MAX = 1600, MAX_FILES = 10;
+// 저장: Storage photos/{내 id}/{기록 id}/{n}.webp + 지도용 썸네일 t{n}.webp(긴 변 400px) → posts 행. 읽기 권한은 posts RLS를 따른다 (supabase/schema.sql)
+const MAX = 1600, THUMB = 400, MAX_FILES = 10;
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 
-async function shrink(file) {
+export async function shrink(file, max = MAX) {
   const bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); // 세로 사진 회전은 EXIF대로 적용한 뒤 버린다
-  const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas");
   c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
   c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
@@ -32,13 +33,20 @@ const REASONS = [["spam", "광고·도배"], ["abuse", "욕설·불쾌"], ["priv
 // 기록 목록 (C3): 사진 2열 격자 → 누르면 크게(<dialog>), 내 기록은 수정(한 줄·공개)·삭제
 // all(D1 모두의 후기): 남의 기록엔 [신고] → 사유 고르기. 3명이 신고하면 DB 트리거가 숨긴다
 export function Posts({ posts, uid, reload, all }) {
-  const big = useRef(), [src, setSrc] = useState(""), [edit, setEdit] = useState(null), [err, setErr] = useState(""), [rep, setRep] = useState(null);
+  const big = useRef(), [src, setSrc] = useState(null), [edit, setEdit] = useState(null), [err, setErr] = useState(""), [rep, setRep] = useState(null);
   async function report(p, reason) {
     const { error } = await sb.from("reports").insert({ post_id: p.id, reason });
     if (error && error.code !== "23505") return setErr("신고 실패: " + error.message); // 23505 = 이미 신고함
     setRep(null); setErr(""); reload();
   }
-  const show = (u) => { setSrc(u); big.current.showModal(); };
+  const show = (u, path, p) => { setSrc({ u, path, trip: (!all || p.user_id === uid) && p.trip_id, done: false }); big.current.showModal(); };
+  // 대표사진: 그 여행(trips.cover)에 저장 → 내 지도에서 그 지역을 이 사진으로 채움. 같은 여행 멤버 지도에도 같이 적용
+  async function cover(e) {
+    e.stopPropagation();
+    const { error } = await sb.from("trips").update({ cover: src.path }).eq("id", src.trip);
+    if (error) return setErr("대표사진 저장 실패: " + error.message);
+    setSrc({ ...src, done: true });
+  }
   async function save(e) {
     e.preventDefault();
     const { error } = await sb.from("posts").update({ body: edit.body.trim(), is_public: edit.is_public }).eq("id", edit.id);
@@ -49,7 +57,7 @@ export function Posts({ posts, uid, reload, all }) {
     if (!confirm("이 기록을 지울까요? 사진도 같이 지워져요.")) return;
     const { error } = await sb.from("posts").delete().eq("id", p.id);
     if (error) return setErr("삭제 실패: " + error.message);
-    if (p.photos.length) await sb.storage.from("photos").remove(p.photos);
+    if (p.photos.length) await sb.storage.from("photos").remove([...p.photos, ...p.photos.map(thumbOf)]);
     setErr(""); reload();
   }
   if (!posts?.length) return null;
@@ -60,7 +68,7 @@ export function Posts({ posts, uid, reload, all }) {
         {posts.map((p) => (
           <li key={p.id} data-post={p.id}>
             {p.urls.length > 0 && <div className="photos">{p.urls.map((u, i) => (
-              <button key={i} type="button" onClick={() => show(u)} aria-label={`사진 ${i + 1} 크게 보기`}><img src={u} alt="" loading="lazy" /></button>
+              <button key={i} type="button" onClick={() => show(u, p.photos[i], p)} aria-label={`사진 ${i + 1} 크게 보기`}><img src={u} alt="" loading="lazy" /></button>
             ))}</div>}
             {edit?.id === p.id ? (
               <form className="edit" onSubmit={save}>
@@ -85,7 +93,10 @@ export function Posts({ posts, uid, reload, all }) {
           </li>
         ))}
       </ul>
-      <dialog ref={big} className="big" onClick={() => big.current.close()} aria-label="사진 크게 보기"><img src={src} alt="" /></dialog>
+      <dialog ref={big} className="big" onClick={() => big.current.close()} aria-label="사진 크게 보기">
+        <img src={src?.u} alt="" />
+        {src?.trip && <button type="button" className="btn cover" disabled={src.done} onClick={cover}>{src.done ? "대표사진으로 정했어요" : "대표사진으로"}</button>}
+      </dialog>
     </>
   );
 }
@@ -115,13 +126,15 @@ export default function Record({ plan, uid, onChange }) {
       if (files.length || body.trim()) {
         for (const [i, f] of files.entries()) {
           setBusy(`사진 줄이는 중… ${i + 1}/${files.length}`);
-          const blob = await shrink(f), path = `${uid}/${id}/${i}.${blob.type === "image/webp" ? "webp" : "jpg"}`;
+          const blob = await shrink(f), thumb = await shrink(f, THUMB), path = `${uid}/${id}/${i}.${blob.type === "image/webp" ? "webp" : "jpg"}`;
           setBusy(`사진 올리는 중… ${i + 1}/${files.length}`);
-          const { error } = await sb.storage.from("photos").upload(path, blob, { contentType: blob.type });
-          if (error) throw error;
-          paths.push(path);
+          for (const [p, b] of [[path, blob], [thumbOf(path), thumb]]) {
+            const { error } = await sb.storage.from("photos").upload(p, b, { contentType: b.type });
+            if (error) throw error;
+            paths.push(p);
+          }
         }
-        const { error } = await sb.from("posts").insert({ id, trip_id: plan.id, prov: plan.prov, place: plan.place, body: body.trim(), photos: paths, is_public: pub });
+        const { error } = await sb.from("posts").insert({ id, trip_id: plan.id, prov: plan.prov, place: plan.place, body: body.trim(), photos: paths.filter((_, i) => i % 2 === 0), is_public: pub });
         if (error) throw error;
       }
       setOpen(false); setFiles([]); setBody(""); setPub(false);

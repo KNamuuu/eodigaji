@@ -3,15 +3,13 @@ import { Link, useParams } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import { Posts, withUrls } from "../components/Record.jsx";
-import { useRegions } from "../regions.js";
+import { useRegions, bbox } from "../regions.js";
 import { sb, useSession } from "../supabase.js";
 
-// 지역을 꽉 채우는 viewBox: path가 M·L·Z 절대좌표뿐이라 숫자 쌍의 최소·최대로 충분. 아주 작은 곳(서울 구 등)은 최소 80칸
-function zoom(d) {
-  const n = d.match(/-?[\d.]+/g).map(Number), xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2);
-  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  const s = Math.max(80, (x1 - x0) * 1.6, (y1 - y0) * 1.6);
-  return `${(x0 + x1 - s) / 2} ${(y0 + y1 - s) / 2} ${s} ${s}`;
+// 지역을 꽉 채우는 viewBox. 아주 작은 곳(서울 구 등)은 최소 80칸
+function zoom(r) {
+  const [x, y, w, h] = bbox(r), s = Math.max(80, w * 1.6, h * 1.6);
+  return `${x + (w - s) / 2} ${y + (h - s) / 2} ${s} ${s}`;
 }
 
 // 지역 피드: 지도는 그 지역 확대, 패널은 탭 (내 기록 / 모두의 후기) + 그 지역 여행
@@ -32,7 +30,7 @@ export default function Region() {
     sb.from("trips").select("id, title, place, status, done_on").eq("prov", r.prov).eq("place", r.name).order("created_at", { ascending: false }).then(({ data }) => setTrips(data ?? []));
   }, [uid, r]);
   return (
-    <Layout view="region" status={r && [r.name, r.prov + (posts ? ` · 기록 ${posts.length}개` : "")]} map={<KoreaMap data={data} picked={r} view={r && zoom(r.d)} />}>
+    <Layout view="region" status={r && [r.name, r.prov + (posts ? ` · 기록 ${posts.length}개` : "")]} map={<KoreaMap data={data} picked={r} view={r && zoom(r)} />}>
       <section id="region" className="screen">
         <Link className="back" to="/me">← 내 지도</Link>
         <h2 className="title">{r?.name}</h2>

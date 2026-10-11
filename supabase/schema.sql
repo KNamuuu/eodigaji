@@ -280,3 +280,13 @@ begin
 end $$;
 revoke execute on function public.delete_me() from public, anon;
 grant execute on function public.delete_me() to authenticated;
+
+-- D4 사진 지도: 지도엔 썸네일 photos/{uid}/{post}/t{n}.webp(긴 변 400px)만 받는다. 썸네일은 posts.photos에 없으므로
+-- 읽기를 "그 기록 폴더(post id) 안 파일이면 그 기록을 볼 수 있을 때"로 넓힌다 (여전히 posts RLS를 탄다)
+-- ponytail: p.id::text 비교라 pk 인덱스를 못 탐 (uuid 캐스트는 이상한 폴더 이름에서 에러). 기록이 수만 개 되면 posts에 thumbs 컬럼으로
+drop policy if exists photo_read on storage.objects;
+create policy photo_read on storage.objects for select to authenticated
+  using (bucket_id = 'photos' and ((storage.foldername(name))[1] = (select auth.uid())::text
+    or exists (select 1 from public.posts p where p.id::text = (storage.foldername(objects.name))[2])));
+-- 대표사진: 여행 멤버가 고른 사진 경로 (그 여행 기록의 사진). 내 지도에서 그 지역을 이 사진으로 채움
+alter table public.trips add column if not exists cover text;

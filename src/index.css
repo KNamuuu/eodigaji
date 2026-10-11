@@ -72,6 +72,11 @@ a.who { font-weight: 600; color: var(--color-accent); }
 #map path.out { fill: var(--color-zone); stroke-opacity: .4; }
 #map path.picked { fill: var(--color-accent); transition: none; }
 #map path.visited { fill: var(--color-visited); cursor: pointer; }
+#map path.photo { fill: transparent; } /* 사진(#photos)이 아래에서 보이게. 테두리·이벤트는 path가 */
+#map path.photo.picked { stroke: var(--color-accent); stroke-width: 2; }
+#map #photos { pointer-events: none; }
+[data-view="me"] #map path { vector-effect: non-scaling-stroke; } /* 확대해도 경계선 굵기 그대로 */
+#fit { position: absolute; top: var(--space-sm); right: var(--space-sm); width: auto; height: 40px; margin: 0; padding: 0 var(--space-md); }
 #map path[tabindex] { outline: none; -webkit-tap-highlight-color: transparent; }
 #map path[tabindex]:focus-visible { stroke: var(--color-ink); stroke-width: 1.5; }
 #status img { display: block; width: 160px; aspect-ratio: 4 / 3; margin-top: var(--space-xs); object-fit: cover; border-radius: var(--radius); }
@@ -261,3 +266,4 @@ h2.title { margin: 0; }
 #legal ul { padding-left: 1.2em; }
 #bye { margin-top: var(--space-xl); padding-top: var(--space-md); border-top: 1px solid var(--color-rule); }
 #bye summary { cursor: pointer; font-size: 14px; color: var(--color-ink-2); }
+.big .cover { position: fixed; left: 50%; bottom: max(var(--space-lg), env(safe-area-inset-bottom)); width: auto; transform: translateX(-50%); cursor: pointer; }
