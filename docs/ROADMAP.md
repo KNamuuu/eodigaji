@@ -222,7 +222,7 @@ RLS 원칙: trips/items는 멤버만, posts는 `is_public or 작성자 or 같은
 
 ## 8. 나중에 (지금은 안 만듦)
 
-- **구글 로그인 마무리** — 카카오는 2026-10-12 배포본에서 실제 로그인 확인(이메일은 비즈앱 전환 후 선택 동의, Supabase는 `account_email`을 항상 요청함). 구글은 Google 인증 플랫폼이 "테스트 중"이라 테스트 사용자만 로그인됨 → D3에서 `/privacy`·`/terms` 만든 뒤 브랜딩에 링크 넣고 [앱 게시]. 콜백: `https://ltbhffozitpbsxjbnbnd.supabase.co/auth/v1/callback`
+- **구글 로그인 마무리** — 카카오는 2026-10-12 배포본에서 실제 로그인 확인(이메일은 비즈앱 전환 후 선택 동의, Supabase는 `account_email`을 항상 요청함). 구글도 2026-10-12 실제 로그인 확인. 단 Google 인증 플랫폼이 "테스트 중"이라 테스트 사용자만 로그인됨 → D3에서 `/privacy`·`/terms` 만든 뒤 브랜딩에 링크 넣고 [앱 게시]. 콜백: `https://ltbhffozitpbsxjbnbnd.supabase.co/auth/v1/callback`
 
 - 제휴 장소 노출·쿠폰 → D1 이후 장소별 기록이 쌓이면 다시 검토
 - 출발지 기준 거리 필터 → 지역 좌표(`cx`,`cy`)는 이미 있으니 필요해지면 B2에 추가
