@@ -267,3 +267,11 @@ h2.title { margin: 0; }
 #bye { margin-top: var(--space-xl); padding-top: var(--space-md); border-top: 1px solid var(--color-rule); }
 #bye summary { cursor: pointer; font-size: 14px; color: var(--color-ink-2); }
 .big .cover { position: fixed; left: 50%; bottom: max(var(--space-lg), env(safe-area-inset-bottom)); width: auto; transform: translateX(-50%); cursor: pointer; }
+/* D5 다른 사람 일정: 펼치면 읽기 전용 일정 */
+.others > li > button { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2xs); width: 100%; padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-rule); text-align: left; white-space: normal; }
+.others .ro { padding-bottom: var(--space-md); }
+.others .ro p { display: flex; gap: var(--space-sm); margin: var(--space-2xs) 0 0; font-size: 15px; }
+.others .ro p b { flex: 0 0 3.2em; font-weight: 600; color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.others .acts { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-xs); }
+.others .acts button { padding: var(--space-2xs) 0; font-size: 13px; color: var(--color-ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.others .acts span { display: flex; flex-wrap: wrap; gap: var(--space-sm); }

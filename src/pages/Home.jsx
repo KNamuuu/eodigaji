@@ -33,7 +33,7 @@ export default function Home() {
   useEffect(() => { saved = { mode, picked, spun, provs, skipMine }; });
   useEffect(() => {
     if (!uid) return setMine([]);
-    sb.from("trips").select("prov, place").eq("status", "done").then(({ data }) => setMine(data || [])); // RLS: 내가 멤버인 것만
+    sb.from("trips").select("prov, place, trip_members!inner(user_id)").eq("status", "done").then(({ data }) => setMine(data || [])); // 내가 멤버인 것만
   }, [uid]);
   const out = useMemo(() => new Set(data?.regions.flatMap((r, i) =>
     (provs.length && !provs.includes(r.prov)) || (uid && skipMine && mine.some((t) => t.prov === r.prov && t.place === r.name)) ? [i] : [])), [data, provs, skipMine, mine, uid]);

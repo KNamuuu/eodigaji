@@ -14,7 +14,7 @@ export default function Me() {
   const [trips, setTrips] = useState(null), [err, setErr] = useState(""), [photo, setPhoto] = useState({}), [peek, setPeek] = useState(null);
   useEffect(() => {
     if (!uid) return;
-    sb.from("trips").select("id, prov, place, title, shared, status, done_on, cover, created_at").order("created_at", { ascending: false }) // RLS: 내가 멤버인 것만
+    sb.from("trips").select("id, prov, place, title, shared, status, done_on, cover, created_at, trip_members!inner(user_id)").order("created_at", { ascending: false }) // 내가 멤버인 것만 (공개 일정은 RLS로 남도 읽힘 → inner join으로 거름)
       .then(({ data, error }) => { setTrips(data); setErr(error ? "불러오기 실패: " + error.message : ""); });
   }, [uid]);
 

@@ -290,3 +290,41 @@ create policy photo_read on storage.objects for select to authenticated
     or exists (select 1 from public.posts p where p.id::text = (storage.foldername(objects.name))[2])));
 -- 대표사진: 여행 멤버가 고른 사진 경로 (그 여행 기록의 사진). 내 지도에서 그 지역을 이 사진으로 채움
 alter table public.trips add column if not exists cover text;
+
+-- D5 남의 일정 보기: trip을 공개하면(is_public, 기본 false) 로그인 사용자 누구나 그 trip·일정(items)을 읽기만 한다. 쓰기는 여전히 멤버만
+-- 그래서 "내 여행" 목록들은 이제 RLS만 믿지 않고 trip_members!inner로 내가 멤버인 것만 고른다 (Me·Home·Region)
+-- 신고는 D1 reports를 같이 쓴다 (post_id 또는 trip_id 하나). 3건이면 trips.hidden → 공개 목록에서 빠짐. 작성자 이름은 어디에도 안 내보냄
+alter table public.trips add column if not exists is_public boolean not null default false;
+alter table public.trips add column if not exists hidden boolean not null default false;
+drop policy if exists trip_public_read on public.trips;
+create policy trip_public_read on public.trips for select to authenticated using (is_public and not hidden);
+drop policy if exists items_public_read on public.items;
+create policy items_public_read on public.items for select to authenticated
+  using (exists (select 1 from public.trips t where t.id = trip_id and t.is_public and not t.hidden));
+-- 멤버가 hidden·owner를 직접 못 바꾸게: 고칠 수 있는 칸만
+revoke update on public.trips from authenticated, anon;
+grant update (title, tip, shared, status, done_on, cover, is_public) on public.trips to authenticated;
+
+alter table public.reports drop constraint if exists reports_pkey;
+alter table public.reports alter column post_id drop not null;
+alter table public.reports add column if not exists trip_id text references public.trips(id) on delete cascade;
+alter table public.reports drop constraint if exists report_target;
+alter table public.reports add constraint report_target check (num_nonnulls(post_id, trip_id) = 1);
+create unique index if not exists reports_post_user on public.reports(post_id, user_id);
+create unique index if not exists reports_trip_user on public.reports(trip_id, user_id);
+drop policy if exists report_create on public.reports;
+create policy report_create on public.reports for insert to authenticated
+  with check (user_id = (select auth.uid()) and (
+    exists (select 1 from public.posts p where p.id = post_id and p.is_public and not p.hidden and p.user_id <> (select auth.uid()))
+    or exists (select 1 from public.trips t where t.id = trip_id and t.is_public and not t.hidden and not public.is_member(t.id))));
+
+create or replace function public.hide_reported() returns trigger
+  language plpgsql security definer set search_path = '' as $$
+begin
+  if new.post_id is not null and (select count(*) from public.reports where post_id = new.post_id) >= 3 then
+    update public.posts set hidden = true where id = new.post_id;
+  elsif new.trip_id is not null and (select count(*) from public.reports where trip_id = new.trip_id) >= 3 then
+    update public.trips set hidden = true where id = new.trip_id;
+  end if;
+  return null;
+end $$;

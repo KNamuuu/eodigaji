@@ -66,7 +66,7 @@ export default function Plan() {
     if (p.error || it.error || !p.data) throw p.error || it.error || new Error("없는 일정");
     const n = Math.max(2, ...it.data.map((i) => i.day + 1));
     s.people = people.data ?? [];
-    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip, status: p.data.status, done_on: p.data.done_on,
+    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip, status: p.data.status, done_on: p.data.done_on, is_public: p.data.is_public,
       days: Array.from({ length: n }, (_, d) => ({ day: `${d + 1}일차`,
         items: it.data.filter((i) => i.day === d).map(({ id, time, what }) => ({ id, time, what })).sort(byTime) })) };
     s.stale = false;

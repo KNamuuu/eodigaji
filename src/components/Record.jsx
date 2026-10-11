@@ -3,6 +3,7 @@ import { sb } from "../supabase.js";
 import { thumbOf } from "../regions.js";
 
 // C1 다녀옴 + 기록: [다녀왔어요] → 날짜 · 사진 여러 장 · 한 줄 · 공개 여부 → 저장
+// D5 일정 공개(trips.is_public): 다녀옴 저장할 때 같이 묻고, 그 뒤엔 토글. 공개하면 그 지역 "다른 사람 일정"에 이름 없이 보임
 // 사진은 올리기 전에 브라우저에서 긴 변 1600px로 줄여 다시 인코딩한다 → EXIF(GPS 등)도 같이 사라진다
 // 저장: Storage photos/{내 id}/{기록 id}/{n}.webp + 지도용 썸네일 t{n}.webp(긴 변 400px) → posts 행. 읽기 권한은 posts RLS를 따른다 (supabase/schema.sql)
 const MAX = 1600, THUMB = 400, MAX_FILES = 10;
@@ -28,7 +29,7 @@ export async function withUrls(posts) {
   return (posts ?? []).map((p) => ({ ...p, urls: p.photos.map((x) => url[x]).filter(Boolean) }));
 }
 
-const REASONS = [["spam", "광고·도배"], ["abuse", "욕설·불쾌"], ["privacy", "개인정보 노출"], ["etc", "기타"]];
+export const REASONS = [["spam", "광고·도배"], ["abuse", "욕설·불쾌"], ["privacy", "개인정보 노출"], ["etc", "기타"]];
 
 // 기록 목록 (C3): 사진 2열 격자 → 누르면 크게(<dialog>), 내 기록은 수정(한 줄·공개)·삭제
 // all(D1 모두의 후기): 남의 기록엔 [신고] → 사유 고르기. 3명이 신고하면 DB 트리거가 숨긴다
@@ -104,7 +105,12 @@ export function Posts({ posts, uid, reload, all }) {
 export default function Record({ plan, uid, onChange }) {
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(""), [err, setErr] = useState("");
   const [date, setDate] = useState(today()), [files, setFiles] = useState([]), [body, setBody] = useState(""), [pub, setPub] = useState(false);
-  const [posts, setPosts] = useState(null);
+  const [posts, setPosts] = useState(null), [share, setShare] = useState(false);
+  async function setPublic(v) { // 바로 바꾸고, 실패하면 되돌림
+    onChange({ is_public: v }); setErr("");
+    const { error } = await sb.from("trips").update({ is_public: v }).eq("id", plan.id);
+    if (error) { onChange({ is_public: !v }); setErr("공개 설정 실패: " + error.message); }
+  }
 
   async function load() {
     const { data } = await sb.from("posts").select().eq("trip_id", plan.id).order("created_at", { ascending: false });
@@ -119,9 +125,9 @@ export default function Record({ plan, uid, onChange }) {
     try {
       if (plan.status !== "done") {
         setBusy("다녀옴 표시 중…");
-        const { error } = await sb.from("trips").update({ status: "done", done_on: date }).eq("id", plan.id);
+        const { error } = await sb.from("trips").update({ status: "done", done_on: date, is_public: share }).eq("id", plan.id);
         if (error) throw error;
-        onChange({ status: "done", done_on: date });
+        onChange({ status: "done", done_on: date, is_public: share });
       }
       if (files.length || body.trim()) {
         for (const [i, f] of files.entries()) {
@@ -149,10 +155,13 @@ export default function Record({ plan, uid, onChange }) {
   return (
     <section className="record" aria-label="다녀온 기록">
       {done && <p className="note">다녀옴 · {plan.done_on}</p>}
+      {done && <label className="check" id="tripPublic"><input type="checkbox" checked={!!plan.is_public} onChange={(e) => setPublic(e.target.checked)} />일정 공개 (이 지역에서 다른 사람이 이름 없이 볼 수 있어요)</label>}
+      {!open && err && <p className="note" role="alert">{err}</p>}
       {!open ? (
         <button id="done" className="btn" onClick={() => setOpen(true)}>{done ? "+ 기록 남기기" : "다녀왔어요"}</button>
       ) : (
         <form id="recordForm" onSubmit={submit}>
+          {!done && <label className="check"><input type="checkbox" name="tripPublic" checked={share} onChange={(e) => setShare(e.target.checked)} />이 일정도 공개 (다른 사람이 보고 따라 짤 수 있어요)</label>}
           {!done && <label>다녀온 날<input type="date" name="date" required max={today()} value={date} onChange={(e) => setDate(e.target.value)} /></label>}
           <label>사진 (최대 {MAX_FILES}장)
             <input type="file" name="photos" accept="image/*" multiple
