@@ -11,7 +11,7 @@ function Who() {
   return (
     <div className="who">
       {(m.avatar_url || m.picture) && <img src={m.avatar_url || m.picture} alt="" referrerPolicy="no-referrer" />}
-      <span>{name}</span>
+      <Link to="/me" title="내 여행"><span>{name}</span></Link>
       <button onClick={() => sb.auth.signOut()}>로그아웃</button>
     </div>
   );

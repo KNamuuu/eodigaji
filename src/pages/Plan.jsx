@@ -1,13 +1,12 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
-import { SB_URL, SB_KEY } from "../supabase.js";
+import { sb, useSession } from "../supabase.js";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import { useRegions } from "../regions.js";
 
-// ── 같이 고치기: 링크(plan id)를 아는 사람끼리 Supabase로 공유 ──
-// DB 규칙(RLS): x-plan-id 헤더로 보낸 id의 일정만 읽고 쓸 수 있다 → supabase/schema.sql
+// ── 저장·같이 고치기: 로그인한 사용자의 trip (Supabase) ──
+// DB 규칙(RLS): trip 멤버만 읽고 쓴다. 공유된 trip은 링크로 들어온 사람이 join_trip()으로 멤버가 된다 → supabase/schema.sql
 // 변경이 생기면 broadcast로 "바뀜"만 알리고, 받은 쪽이 다시 불러온다.
 // ponytail: 입력칸에 커서가 있는 동안엔 남의 변경을 미뤘다가 포커스가 빠지면 반영. 글자 단위 동시 편집이 필요해지면 CRDT로.
 const byTime = (a, b) => (a.time || "99").localeCompare(b.time || "99");
@@ -37,32 +36,34 @@ function samplePlan(place) {
 }
 
 // /plan?r=지역번호 → 이 브라우저에 저장된 일정 (없으면 AI, 안 되면 샘플)
-// /plan/:id → 공유된 일정 (Supabase)
+// /plan/:id → 저장된 일정 (Supabase, 로그인 필요)
 export default function Plan() {
   const { id } = useParams();
   const r = useSearchParams()[0].get("r");
   const nav = useNavigate();
+  const session = useSession(), uid = session?.user.id;
   const data = useRegions();
   const sectionRef = useRef(), bodyRef = useRef();
   const [, render] = useReducer((n) => n + 1, 0);
   // 일정은 고칠 때마다 직접 바꾸고 render()로 다시 그린다 (예전 vanilla 구조 그대로)
-  const s = useRef({ plan: null, dirty: new Set(), titleDirty: false, stale: false, note: null, missing: false }).current;
+  const s = useRef({ plan: null, dirty: new Set(), titleDirty: false, stale: false, note: null, missing: null }).current;
   const rerender = () => { s.note = null; render(); }; // 구조가 바뀌면 안내 문구도 기본으로
 
   const savePlan = () => { try { localStorage.setItem(s.planKey, JSON.stringify(s.plan)); } catch {} };
 
   function connect(planId) {
     disconnect();
-    s.db = createClient(SB_URL, SB_KEY, { global: { headers: { "x-plan-id": planId } }, auth: { persistSession: false, storageKey: "plan" } });
-    s.chan = s.db.channel("plan-" + planId).on("broadcast", { event: "changed" }, () => { s.stale = true; refresh(); }).subscribe();
+    s.chan = sb.channel("trip-" + planId).on("broadcast", { event: "changed" }, () => { s.stale = true; refresh(); }).subscribe();
   }
-  function disconnect() { clearTimeout(s.flushTimer); s.db?.removeAllChannels(); s.db = s.chan = null; s.dirty.clear(); s.titleDirty = s.stale = false; }
+  function disconnect() { clearTimeout(s.flushTimer); s.chan && sb.removeChannel(s.chan); s.chan = null; s.dirty.clear(); s.titleDirty = s.stale = false; }
 
-  async function loadShared(planId) {
-    const [p, it] = await Promise.all([s.db.from("plans").select().eq("id", planId).maybeSingle(), s.db.from("items").select().eq("plan_id", planId)]);
+  async function loadShared(planId, join) {
+    const get = () => Promise.all([sb.from("trips").select().eq("id", planId).maybeSingle(), sb.from("items").select().eq("trip_id", planId)]);
+    let [p, it] = await get();
+    if (join && !p.error && !p.data && (await sb.rpc("join_trip", { tid: planId })).data) [p, it] = await get(); // 초대 링크로 처음 들어옴
     if (p.error || it.error || !p.data) throw p.error || it.error || new Error("없는 일정");
     const n = Math.max(2, ...it.data.map((i) => i.day + 1));
-    s.plan = { id: planId, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip,
+    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip,
       days: Array.from({ length: n }, (_, d) => ({ day: `${d + 1}일차`,
         items: it.data.filter((i) => i.day === d).map(({ id, time, what }) => ({ id, time, what })).sort(byTime) })) };
     s.stale = false;
@@ -74,7 +75,7 @@ export default function Plan() {
     try { await loadShared(s.plan.id); savePlan(); rerender(); } catch {}
   }
 
-  const itemRow = (it) => ({ id: it.id, plan_id: s.plan.id, day: s.plan.days.findIndex((d) => d.items.includes(it)), time: it.time, what: it.what });
+  const itemRow = (it) => ({ id: it.id, trip_id: s.plan.id, day: s.plan.days.findIndex((d) => d.items.includes(it)), time: it.time, what: it.what });
   function synced({ error }) {
     if (error) { s.note = "저장 실패: " + error.message; return render(); }
     s.chan?.send({ type: "broadcast", event: "changed", payload: {} });
@@ -83,19 +84,20 @@ export default function Plan() {
   async function flush() {
     const rows = [...s.dirty].map(itemRow).filter((row) => row.day >= 0);
     s.dirty.clear();
-    if (s.titleDirty) { s.titleDirty = false; synced(await s.db.from("plans").update({ title: s.plan.title }).eq("id", s.plan.id)); }
-    if (rows.length) synced(await s.db.from("items").upsert(rows));
+    if (s.titleDirty) { s.titleDirty = false; synced(await sb.from("trips").update({ title: s.plan.title }).eq("id", s.plan.id)); }
+    if (rows.length) synced(await sb.from("items").upsert(rows));
     if (s.stale) refresh();
   }
 
   useEffect(() => {
-    if (!data) return;
+    if (!data || session === undefined) return;
     let dead = false;
-    s.plan = null; s.missing = false; rerender();
+    s.plan = null; s.missing = null; rerender();
     (async () => {
       if (id) {
+        if (!uid) { s.missing = "login"; return render(); }
         connect(id);
-        try { await loadShared(id); } catch { if (!dead) { s.missing = true; render(); } return; }
+        try { await loadShared(id, true); } catch { if (!dead) { s.missing = "gone"; render(); } return; }
       } else {
         const region = data.regions[r];
         if (!region) return nav("/", { replace: true });
@@ -111,9 +113,9 @@ export default function Plan() {
         }
         if (dead) return;
         s.plan = Object.assign(plan, { prov: region.prov, place: region.name });
-        if (plan.id) {           // 공유한 일정이면 최신본으로
-          connect(plan.id);
-          try { await loadShared(plan.id); } catch {}
+        if (plan.id) {           // 저장한 일정이면 최신본으로. 못 불러오면(로그아웃·다른 계정) 저장 안 한 일정으로 취급
+          if (uid) connect(plan.id);
+          try { if (!uid) throw 0; await loadShared(plan.id); } catch { disconnect(); delete plan.id; delete plan.shared; }
         }
       }
       if (dead) return;
@@ -122,7 +124,7 @@ export default function Plan() {
       savePlan(); rerender();
     })();
     return () => { dead = true; disconnect(); };
-  }, [data, id, r]);
+  }, [data, id, r, uid]);
 
   useEffect(() => { // + 일정 추가 직후 그 칸에 커서
     if (s.focusId) { bodyRef.current?.querySelector(`[data-id="${s.focusId}"]`)?.focus(); s.focusId = null; }
@@ -143,7 +145,7 @@ export default function Plan() {
   function del(d, i) {
     const [it] = s.plan.days[d].items.splice(i, 1);
     s.dirty.delete(it);
-    if (s.plan.id) s.db.from("items").delete().eq("id", it.id).then(synced);
+    if (s.plan.id) sb.from("items").delete().eq("id", it.id).then(synced);
     savePlan(); rerender();
   }
   function add(d) {
@@ -154,19 +156,34 @@ export default function Plan() {
     savePlan(); rerender();
   }
 
+  // 저장 = 내 trip 만들기 (멤버는 나 혼자). 비로그인이면 로그인 갔다가 이 화면으로 돌아온다 (고친 일정은 localStorage에 그대로)
+  async function save() {
+    const plan = s.plan;
+    if (plan.id) return true;
+    if (!uid) { nav("/login?next=" + encodeURIComponent(location.pathname + location.search)); return false; }
+    const planId = hex(16);
+    connect(planId);
+    const res = await sb.from("trips").insert({ id: planId, owner_id: uid, prov: plan.prov, place: plan.place, title: plan.title, tip: plan.tip });
+    plan.id = planId;
+    const res2 = res.error ? res : await sb.from("items").insert(plan.days.flatMap((d) => d.items.map(itemRow)));
+    if (res2.error) { // 반쯤 만들어진 trip은 지운다
+      if (!res.error) await sb.from("trips").delete().eq("id", planId);
+      plan.id = undefined; disconnect(); s.note = "저장 실패: " + res2.error.message; render(); return false;
+    }
+    history.replaceState(history.state, "", "/plan/" + planId); // 라우터를 거치지 않고 주소만 바꿈 → 일정을 다시 불러오지 않음
+    savePlan(); s.note = "저장됨 · 내 지도에서 볼 수 있어요"; render();
+    return true;
+  }
+
   async function invite() {
     const plan = s.plan;
-    if (!plan.id) {
-      const planId = hex(16);
-      connect(planId);
-      const res = await s.db.from("plans").insert({ id: planId, prov: plan.prov, place: plan.place, title: plan.title, tip: plan.tip });
-      plan.id = planId;
-      const res2 = res.error ? res : await s.db.from("items").insert(plan.days.flatMap((d) => d.items.map(itemRow)));
-      if (res2.error) { plan.id = undefined; disconnect(); s.note = "공유 실패: " + res2.error.message; return render(); }
-      savePlan(); rerender();
+    if (!(await save())) return;
+    if (!plan.shared) {
+      const { error } = await sb.from("trips").update({ shared: true }).eq("id", plan.id);
+      if (error) { s.note = "공유 실패: " + error.message; return render(); }
+      plan.shared = true; savePlan();
     }
     const url = location.origin + "/plan/" + plan.id;
-    history.replaceState(history.state, "", url); // 라우터를 거치지 않고 주소만 바꿈 → 일정을 다시 불러오지 않음
     if (navigator.share) return navigator.share({ title: plan.title, text: "같이 여행 일정 고치자!", url }).catch(() => {});
     try { await navigator.clipboard.writeText(url); s.note = "링크 복사됨 · 친구에게 보내세요"; render(); }
     catch { prompt("이 링크를 친구에게 보내세요", url); }
@@ -174,7 +191,7 @@ export default function Plan() {
 
   const plan = s.plan;
   const region = data && (plan ? data.regions.find((x) => x.prov === plan.prov && x.name === plan.place) : data.regions[r]);
-  const note = s.note ?? (plan ? (plan.id ? "같이 고치는 중 · " : plan.sample ? "샘플 일정 · " : "") + "눌러서 바로 고칠 수 있어요" : "");
+  const note = s.note ?? (plan ? (plan.shared ? "같이 고치는 중 · " : plan.id ? "저장됨 · " : plan.sample ? "샘플 일정 · " : "") + "눌러서 바로 고칠 수 있어요" : "");
 
   return (
     <Layout view="plan" map={<KoreaMap data={data} picked={region} />} status={region && [region.name, `${region.prov} · 여기로 결정!`]}>
@@ -185,7 +202,8 @@ export default function Plan() {
         <p className="note" id="planNote">{note}</p>
         {!plan ? (
           <div id="planBody" className={s.missing ? "" : "loading"}>
-            {s.missing ? "일정을 찾을 수 없어요. 링크를 다시 확인해 주세요." : id ? "일정 불러오는 중…" : "일정 짜는 중…"}
+            {s.missing === "login" ? <>로그인하면 이 일정을 볼 수 있어요. <a href={"/login?next=" + encodeURIComponent(location.pathname)}>로그인</a></>
+              : s.missing ? "일정을 찾을 수 없어요. 링크를 다시 확인해 주세요." : id ? "일정 불러오는 중…" : "일정 짜는 중…"}
           </div>
         ) : (
           <div id="planBody" ref={bodyRef}>
@@ -207,7 +225,8 @@ export default function Plan() {
             <p className="tip">{plan.tip}</p>
           </div>
         )}
-        <button id="invite" className="btn" hidden={!plan} onClick={invite}>{plan?.id ? "초대 링크 다시 보내기" : "친구 초대해서 같이 고치기"}</button>
+        <button id="save" className="btn" hidden={!plan || !!plan.id} onClick={save}>이 일정 저장</button>
+        <button id="invite" className={plan?.id ? "btn" : "btn sub"} hidden={!plan} onClick={invite}>{plan?.shared ? "초대 링크 다시 보내기" : "친구 초대"}</button>
       </section>
     </Layout>
   );

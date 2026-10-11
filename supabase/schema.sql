@@ -54,3 +54,83 @@ end $$;
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
+
+-- A3 내 여행 저장: plans(링크=권한) → trips + trip_members (로그인 = 권한)
+-- 멤버만 읽고 쓴다. 저장만 한 여행은 나 혼자, [친구 초대]를 누르면 shared=true → 링크로 들어온 로그인 사용자가 join_trip()으로 멤버가 된다.
+-- ponytail: 초대 = trip id를 아는 것. A4에서 만료되는 invites 토큰으로 바꾼다.
+create table if not exists public.trips (
+  id text primary key check (length(id) >= 16),
+  owner_id uuid references auth.users(id) on delete cascade, -- 옛 plans에서 옮긴 건 null
+  prov text not null default '',
+  place text not null,
+  title text not null default '',
+  tip text not null default '',
+  shared boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.trip_members (
+  trip_id text not null references public.trips(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'member')),
+  primary key (trip_id, user_id)
+);
+create index if not exists trip_members_user on public.trip_members(user_id);
+
+-- 옛 공유 일정 옮기기 (링크로 쓰던 거라 shared=true → 로그인하고 링크 열면 멤버가 됨). plans는 백업으로 남기고 잠근다
+insert into public.trips (id, prov, place, title, tip, shared, created_at)
+  select id, prov, place, title, tip, true, created_at from public.plans on conflict (id) do nothing;
+alter table public.items drop constraint if exists items_plan_id_fkey;
+do $$ begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'items' and column_name = 'plan_id') then
+    alter table public.items rename column plan_id to trip_id;
+  end if;
+end $$;
+alter table public.items drop constraint if exists items_trip_id_fkey;
+alter table public.items add constraint items_trip_id_fkey foreign key (trip_id) references public.trips(id) on delete cascade;
+drop policy if exists plan_by_link on public.plans;
+drop policy if exists items_by_link on public.items;
+drop function if exists public.req_plan_id();
+
+alter table public.trips enable row level security;
+alter table public.trip_members enable row level security;
+
+create or replace function public.is_member(tid text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.trip_members where trip_id = tid and user_id = (select auth.uid()))
+$$;
+revoke execute on function public.is_member(text) from public, anon;
+
+drop policy if exists trip_read on public.trips;
+create policy trip_read on public.trips for select to authenticated using (public.is_member(id));
+drop policy if exists trip_create on public.trips;
+create policy trip_create on public.trips for insert to authenticated with check (owner_id = (select auth.uid()));
+drop policy if exists trip_edit on public.trips;
+create policy trip_edit on public.trips for update to authenticated using (public.is_member(id)) with check (public.is_member(id));
+drop policy if exists trip_delete on public.trips;
+create policy trip_delete on public.trips for delete to authenticated using (owner_id = (select auth.uid()));
+drop policy if exists member_self on public.trip_members;
+create policy member_self on public.trip_members for select to authenticated using (user_id = (select auth.uid()));
+drop policy if exists items_member on public.items;
+create policy items_member on public.items for all to authenticated using (public.is_member(trip_id)) with check (public.is_member(trip_id));
+
+-- 여행을 만들면 만든 사람이 owner 멤버로
+create or replace function public.add_owner() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.trip_members (trip_id, user_id, role) values (new.id, new.owner_id, 'owner') on conflict do nothing;
+  return new;
+end $$;
+revoke execute on function public.add_owner() from public, anon, authenticated;
+drop trigger if exists on_trip_created on public.trips;
+create trigger on_trip_created after insert on public.trips for each row when (new.owner_id is not null) execute function public.add_owner();
+
+-- 초대 링크로 들어오기: 공유된 여행만 멤버가 될 수 있다
+create or replace function public.join_trip(tid text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null or not exists (select 1 from public.trips where id = tid and shared) then return false; end if;
+  insert into public.trip_members (trip_id, user_id) values (tid, auth.uid()) on conflict do nothing;
+  return true;
+end $$;
+revoke execute on function public.join_trip(text) from public, anon;
+grant execute on function public.join_trip(text) to authenticated;
