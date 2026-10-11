@@ -124,7 +124,7 @@ a.who { font-weight: 600; color: var(--color-accent); }
 .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); }
 
 /* ── 카드 3장 (B3): 위치는 .card, 뒤집기는 .card-in. transform·opacity만 움직인다 ── */
-.deck { --gap: var(--space-sm); display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 104px); justify-content: center; /* 폭 상한: 꽉 채우면 기울어진 양 끝이 화면 밖으로 */ gap: var(--gap); margin-top: var(--space-lg); padding: var(--space-md) 0 var(--space-xl); }
+.deck { --gap: var(--space-sm); display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 88px); justify-content: center; /* 폭 상한: 꽉 채우면 기울어진 양 끝이 화면 밖으로 */ gap: var(--gap); margin-top: var(--space-lg); padding: var(--space-md) 0 var(--space-xl); }
 .card { --stack: calc(-1 * var(--o) * (100% + var(--gap))); /* 가운데로 모으는 거리 */
   aspect-ratio: 2 / 3; padding: 0; perspective: 700px; border-radius: var(--radius);
   transform: rotate(calc(var(--o) * 4deg)) translateY(calc(var(--o) * var(--o) * 6px)); /* 부채꼴 */
