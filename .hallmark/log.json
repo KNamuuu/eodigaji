@@ -28,5 +28,12 @@
   "theme": "custom",
   "enrichment": "none",
   "brief": "어디가지 · C1 다녀옴 + 기록 폼 (일정 아래, 사진 2열 격자, 토큰 색만)"
+ },
+ {
+  "date": "2026-10-11",
+  "macrostructure": "Workbench",
+  "theme": "custom",
+  "enrichment": "none",
+  "brief": "어디가지 · C2 내 지도 색칠 + 미리보기 카드 (상태창 자리, --color-visited 토큰 추가)"
  }
 ]

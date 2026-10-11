@@ -1,10 +1,11 @@
 // regions.json 지도. pathsRef로 지역 path DOM을 넘겨준다 (룰렛 깜빡임·다트 판정용). out = 흐리게 할 지역 index Set
-export default function KoreaMap({ data, height, picked, out, svgRef, pathsRef, children }) {
+// visited = 칠할 지역 index Set, regionProps(r, i) = 지역 path에 붙일 이벤트 등 (내 지도)
+export default function KoreaMap({ data, height, picked, out, visited, regionProps, svgRef, pathsRef, children }) {
   return (
     <svg id="map" ref={svgRef} viewBox={`0 0 400 ${height ?? data?.h ?? 672}`}>
       <g id="regions">
         {data?.regions.map((r, i) => (
-          <path key={r.id} d={r.d} className={picked === r ? "picked" : out?.has(i) ? "out" : undefined} ref={pathsRef && ((el) => { pathsRef.current[i] = el; })} />
+          <path key={r.id} d={r.d} className={picked === r ? "picked" : out?.has(i) ? "out" : visited?.has(i) ? "visited" : undefined} {...regionProps?.(r, i)} ref={pathsRef && ((el) => { pathsRef.current[i] = el; })} />
         ))}
       </g>
       {data && <g id="dokdo">

@@ -16,6 +16,7 @@
   --color-sea: oklch(96.5% 0.01 240);
   --color-land-line: oklch(84% 0.01 250);
   --color-zone: oklch(92.5% 0.014 240);
+  --color-visited: oklch(70% 0.085 262); /* 내 지도: 다녀온 곳 (accent 명도 단계) */
   --color-kakao: #FEE500; --color-kakao-ink: oklch(0% 0 0 / .85); /* 카카오 버튼 규정 색 */
   --color-shadow: oklch(22% 0.02 260 / .08);
   --font-body: "Pretendard Variable", Pretendard, system-ui, sans-serif;
@@ -70,6 +71,10 @@ a.who { font-weight: 600; color: var(--color-accent); }
 #map path.flash { fill: var(--color-accent-soft); transition: none; }
 #map path.out { fill: var(--color-zone); stroke-opacity: .4; }
 #map path.picked { fill: var(--color-accent); transition: none; }
+#map path.visited { fill: var(--color-visited); cursor: pointer; }
+#map path[tabindex] { outline: none; -webkit-tap-highlight-color: transparent; }
+#map path[tabindex]:focus-visible { stroke: var(--color-ink); stroke-width: 1.5; }
+#status img { display: block; width: 160px; aspect-ratio: 4 / 3; margin-top: var(--space-xs); object-fit: cover; border-radius: var(--radius); }
 #map .label { font: 700 14px var(--font-body); fill: var(--color-ink); text-anchor: middle; paint-order: stroke; stroke: var(--color-paper); stroke-width: 4px; pointer-events: none; }
 #map .zone { fill: var(--color-zone); }
 #map .dartLayer { pointer-events: none; }
