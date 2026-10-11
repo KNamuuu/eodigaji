@@ -1,5 +1,5 @@
 // B2 뽑기 필터 점검: `npx vite preview --port 4173` 띄운 상태에서 `node filter.mjs` (캡처는 shots/B2)
-// 룰렛 100번(가짜 시계로 빨리 감기) · 다트로 뺀 곳 맞히기 · 로그인 계정의 "내 여행에 있는 곳 빼기"
+// 룰렛 100번(가짜 시계로 빨리 감기) · 다트로 뺀 곳 맞히기 · 로그인 계정의 "다녀온 곳 빼기"
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
 import assert from "node:assert";
@@ -82,7 +82,7 @@ const { data: { session } } = await createClient(SB_URL, SB_KEY, { auth: { persi
   .auth.signInWithPassword({ email: "a3-a@eodigaji.test", password: process.env.A3_A_PW || "a3-test-pw-1" });
 const c = createClient(SB_URL, SB_KEY, { auth: { persistSession: false }, global: { headers: { Authorization: "Bearer " + session.access_token } } });
 const id = crypto.randomUUID();
-{ const { error } = await c.from("trips").insert({ id, owner_id: session.user.id, prov: "강원", place: "춘천시", title: "B2 점검" }); assert.ifError(error); }
+{ const { error } = await c.from("trips").insert({ id, owner_id: session.user.id, prov: "강원", place: "춘천시", title: "B2 점검", status: "done" }); assert.ifError(error); }
 try {
   const p3 = await open(1280, { session, clock: true });
   await chip(p3, "강원");

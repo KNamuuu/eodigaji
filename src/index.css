@@ -200,3 +200,15 @@ h2.title { margin: 0; }
 .people { display: flex; list-style: none; margin: var(--space-sm) 0 0; padding: 0; }
 .people li + li { margin-left: calc(-1 * var(--space-2xs)); }
 .people img, .people span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--color-paper); background: var(--color-accent); color: var(--color-paper); font-size: 13px; font-weight: 600; object-fit: cover; }
+
+/* ── 다녀온 기록 (C1) ── */
+.record { margin-top: var(--space-xl); padding-top: var(--space-md); border-top: 1px solid var(--color-rule); }
+#recordForm label:not(.check) { display: block; margin-top: var(--space-md); font-size: 13px; color: var(--color-ink-2); }
+#recordForm input:not([type="checkbox"]) { display: block; width: 100%; min-height: 48px; margin-top: var(--space-xs); padding: var(--space-xs) var(--space-sm); font: inherit; font-size: 16px; color: var(--color-ink); background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius); }
+#recordForm input:focus-visible { outline: none; border-color: var(--color-accent); }
+.posts { list-style: none; margin: var(--space-lg) 0 0; padding: 0; }
+.posts li { padding: var(--space-md) 0; border-bottom: 1px solid var(--color-rule); }
+.posts p { margin: var(--space-xs) 0 0; font-size: 15px; line-height: 1.6; }
+.posts small { display: block; margin-top: var(--space-2xs); font-size: 13px; color: var(--color-ink-2); }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2xs); }
+.photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); background: var(--color-paper-2); }

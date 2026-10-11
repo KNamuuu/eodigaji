@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { sb, useSession } from "../supabase.js";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
+import Record from "../components/Record.jsx";
 import { useRegions } from "../regions.js";
 
 // ── 저장·같이 고치기: 로그인한 사용자의 trip (Supabase) ──
@@ -65,7 +66,7 @@ export default function Plan() {
     if (p.error || it.error || !p.data) throw p.error || it.error || new Error("없는 일정");
     const n = Math.max(2, ...it.data.map((i) => i.day + 1));
     s.people = people.data ?? [];
-    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip,
+    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip, status: p.data.status, done_on: p.data.done_on,
       days: Array.from({ length: n }, (_, d) => ({ day: `${d + 1}일차`,
         items: it.data.filter((i) => i.day === d).map(({ id, time, what }) => ({ id, time, what })).sort(byTime) })) };
     s.stale = false;
@@ -238,6 +239,7 @@ export default function Plan() {
         )}
         <button id="save" className="btn" hidden={!plan || !!plan.id} onClick={save}>이 일정 저장</button>
         <button id="invite" className={plan?.id ? "btn" : "btn sub"} hidden={!plan} onClick={invite}>{plan?.shared ? "초대 링크 다시 보내기" : "친구 초대"}</button>
+        {plan?.id && uid && <Record plan={plan} uid={uid} onChange={(v) => { Object.assign(plan, v); savePlan(); render(); }} />}
       </section>
     </Layout>
   );

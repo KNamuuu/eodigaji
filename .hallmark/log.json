@@ -21,5 +21,12 @@
   "theme": "custom",
   "enrichment": "none",
   "brief": "어디가지 · B3 카드 3장 뽑기 (패널 안 카드 3장, 토큰 색만)"
+ },
+ {
+  "date": "2026-10-11",
+  "macrostructure": "Workbench",
+  "theme": "custom",
+  "enrichment": "none",
+  "brief": "어디가지 · C1 다녀옴 + 기록 폼 (일정 아래, 사진 2열 격자, 토큰 색만)"
  }
 ]

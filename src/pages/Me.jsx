@@ -11,7 +11,7 @@ export default function Me() {
   const [trips, setTrips] = useState(null), [err, setErr] = useState("");
   useEffect(() => {
     if (!uid) return;
-    sb.from("trips").select("id, prov, place, title, shared, created_at").order("created_at", { ascending: false }) // RLS: 내가 멤버인 것만
+    sb.from("trips").select("id, prov, place, title, shared, status, done_on, created_at").order("created_at", { ascending: false }) // RLS: 내가 멤버인 것만
       .then(({ data, error }) => { setTrips(data); setErr(error ? "불러오기 실패: " + error.message : ""); });
   }, [uid]);
 
@@ -24,7 +24,7 @@ export default function Me() {
           : !trips ? <p className="help">불러오는 중…</p>
           : !trips.length ? <p className="help">아직 저장한 여행이 없어요. <Link to="/">뽑으러 가기</Link></p>
           : <ul className="trips">{trips.map((t) => (
-              <li key={t.id}><Link to={"/plan/" + t.id}><b>{t.title || t.place}</b><small>{t.prov} {t.place}{t.shared ? " · 같이 고치는 중" : ""}</small></Link></li>
+              <li key={t.id}><Link to={"/plan/" + t.id}><b>{t.title || t.place}</b><small>{t.prov} {t.place}{t.status === "done" ? ` · 다녀옴 ${t.done_on}` : t.shared ? " · 같이 고치는 중" : ""}</small></Link></li>
             ))}</ul>}
       </section>
     </Layout>

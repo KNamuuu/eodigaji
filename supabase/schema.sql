@@ -177,3 +177,50 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke execute on function public.trip_people(text) from public, anon;
 grant execute on function public.trip_people(text) to authenticated;
+
+-- C1 다녀옴 + 기록: trip에 상태·날짜, 기록(posts)은 사진 경로 배열 + 한 줄 + 공개 여부
+-- 사진은 비공개 버킷 photos/{user_id}/{post_id}/{n}.webp (Safari는 webp 인코딩이 안 돼서 .jpg) — 읽기는 "그 사진이 든 기록을 볼 수 있으면" (posts RLS를 그대로 탄다)
+-- ponytail: trip을 지워도 Storage 사진은 남는다. D3(계정 삭제)에서 같이 정리
+alter table public.trips add column if not exists status text not null default 'planned' check (status in ('planned', 'done'));
+alter table public.trips add column if not exists done_on date;
+
+create table if not exists public.posts (
+  id uuid primary key default gen_random_uuid(),
+  trip_id text not null references public.trips(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  prov text not null,
+  place text not null,
+  body text not null default '' check (length(body) <= 500),
+  place_name text not null default '', -- 제휴 대비: 장소 이름 (선택)
+  photos text[] not null default '{}' check (cardinality(photos) <= 10),
+  is_public boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists posts_trip on public.posts(trip_id);
+create index if not exists posts_region on public.posts(prov, place);
+alter table public.posts enable row level security;
+drop policy if exists post_read on public.posts;
+create policy post_read on public.posts for select to authenticated
+  using (is_public or user_id = (select auth.uid()) or public.is_member(trip_id));
+drop policy if exists post_create on public.posts;
+create policy post_create on public.posts for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.is_member(trip_id));
+drop policy if exists post_edit on public.posts;
+create policy post_edit on public.posts for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()) and public.is_member(trip_id));
+drop policy if exists post_delete on public.posts;
+create policy post_delete on public.posts for delete to authenticated using (user_id = (select auth.uid()));
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('photos', 'photos', false, 1048576, array['image/webp', 'image/jpeg'])
+  on conflict (id) do update set public = false, file_size_limit = 1048576, allowed_mime_types = array['image/webp', 'image/jpeg'];
+drop policy if exists photo_upload on storage.objects;
+create policy photo_upload on storage.objects for insert to authenticated
+  with check (bucket_id = 'photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists photo_read on storage.objects;
+create policy photo_read on storage.objects for select to authenticated
+  using (bucket_id = 'photos' and ((storage.foldername(name))[1] = (select auth.uid())::text
+    or exists (select 1 from public.posts p where objects.name = any(p.photos))));
+drop policy if exists photo_delete on storage.objects;
+create policy photo_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'photos' and (storage.foldername(name))[1] = (select auth.uid())::text);

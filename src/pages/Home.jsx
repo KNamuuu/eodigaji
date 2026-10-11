@@ -27,15 +27,14 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [round, setRound] = useState(0); // 탭을 다시 누르면 다트 새로 (바람 새로)
   const [status, setStatus] = useState(saved.picked ? pickedStatus(saved.picked) : idleStatus);
-  // 필터: 고른 도만(비면 전국), 내 여행에 있는 곳 빼기(로그인 시)
+  // 필터: 고른 도만(비면 전국), 다녀온 곳 빼기(로그인 시)
   const [provs, setProvs] = useState(saved.provs), [skipMine, setSkipMine] = useState(saved.skipMine);
   const uid = useSession()?.user.id, [mine, setMine] = useState([]);
   useEffect(() => { saved = { mode, picked, spun, provs, skipMine }; });
   useEffect(() => {
     if (!uid) return setMine([]);
-    sb.from("trips").select("prov, place").then(({ data }) => setMine(data || [])); // RLS: 내가 멤버인 것만
+    sb.from("trips").select("prov, place").eq("status", "done").then(({ data }) => setMine(data || [])); // RLS: 내가 멤버인 것만
   }, [uid]);
-  // ponytail: "가본 곳" = 내 여행에 있는 곳. C1에서 다녀옴(status) 생기면 그걸로 바꿈
   const out = useMemo(() => new Set(data?.regions.flatMap((r, i) =>
     (provs.length && !provs.includes(r.prov)) || (uid && skipMine && mine.some((t) => t.prov === r.prov && t.place === r.name)) ? [i] : [])), [data, provs, skipMine, mine, uid]);
   const outRef = useRef(out); outRef.current = out;
@@ -96,8 +95,8 @@ export default function Home() {
                 onClick={() => setProvs(provs.includes(p) ? provs.filter((x) => x !== p) : [...provs, p])}>{p}</button>
             ))}
           </div>
-          {uid ? <label className="check"><input type="checkbox" checked={skipMine} disabled={busy} onChange={(e) => setSkipMine(e.target.checked)} /> 내 여행에 있는 곳 빼기</label>
-            : <p className="note">로그인하면 내 여행에 있는 곳을 뺄 수 있어요</p>}
+          {uid ? <label className="check"><input type="checkbox" checked={skipMine} disabled={busy} onChange={(e) => setSkipMine(e.target.checked)} /> 다녀온 곳 빼기</label>
+            : <p className="note">로그인하면 다녀온 곳을 뺄 수 있어요</p>}
           {provs.length > 0 && <button className="add" disabled={busy} onClick={() => setProvs([])}>도 선택 지우기</button>}
         </details>
         <p className="help desk" id="help">{HELP[mode]}</p>
