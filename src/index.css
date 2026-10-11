@@ -145,3 +145,8 @@ h2.title { margin: 0; }
 .trips a:hover b { color: var(--color-accent); }
 .trips small { font-size: 13px; color: var(--color-ink-2); }
 .who a { text-decoration: none; }
+
+/* ── 같이 고치는 사람 (일정 위 아바타) ── */
+.people { display: flex; list-style: none; margin: var(--space-sm) 0 0; padding: 0; }
+.people li + li { margin-left: calc(-1 * var(--space-2xs)); }
+.people img, .people span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--color-paper); background: var(--color-accent); color: var(--color-paper); font-size: 13px; font-weight: 600; object-fit: cover; }

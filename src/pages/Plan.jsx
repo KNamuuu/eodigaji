@@ -6,7 +6,7 @@ import KoreaMap from "../components/KoreaMap.jsx";
 import { useRegions } from "../regions.js";
 
 // ── 저장·같이 고치기: 로그인한 사용자의 trip (Supabase) ──
-// DB 규칙(RLS): trip 멤버만 읽고 쓴다. 공유된 trip은 링크로 들어온 사람이 join_trip()으로 멤버가 된다 → supabase/schema.sql
+// DB 규칙(RLS): trip 멤버만 읽고 쓴다. 친구는 초대 링크(/invite/토큰)로 멤버가 된다 → supabase/schema.sql, Invite.jsx
 // 변경이 생기면 broadcast로 "바뀜"만 알리고, 받은 쪽이 다시 불러온다.
 // ponytail: 입력칸에 커서가 있는 동안엔 남의 변경을 미뤘다가 포커스가 빠지면 반영. 글자 단위 동시 편집이 필요해지면 CRDT로.
 const byTime = (a, b) => (a.time || "99").localeCompare(b.time || "99");
@@ -53,16 +53,18 @@ export default function Plan() {
 
   function connect(planId) {
     disconnect();
-    s.chan = sb.channel("trip-" + planId).on("broadcast", { event: "changed" }, () => { s.stale = true; refresh(); }).subscribe();
+    s.chan = sb.channel("trip-" + planId).on("broadcast", { event: "changed" }, () => { s.stale = true; refresh(); })
+      .subscribe((st) => { if (st === "SUBSCRIBED" && history.state?.usr?.joined) s.chan.send({ type: "broadcast", event: "changed", payload: {} }); }); // 막 들어온 멤버 → 다른 사람 아바타 갱신
   }
   function disconnect() { clearTimeout(s.flushTimer); s.chan && sb.removeChannel(s.chan); s.chan = null; s.dirty.clear(); s.titleDirty = s.stale = false; }
 
   async function loadShared(planId, join) {
-    const get = () => Promise.all([sb.from("trips").select().eq("id", planId).maybeSingle(), sb.from("items").select().eq("trip_id", planId)]);
-    let [p, it] = await get();
-    if (join && !p.error && !p.data && (await sb.rpc("join_trip", { tid: planId })).data) [p, it] = await get(); // 초대 링크로 처음 들어옴
+    const get = () => Promise.all([sb.from("trips").select().eq("id", planId).maybeSingle(), sb.from("items").select().eq("trip_id", planId), sb.rpc("trip_people", { tid: planId })]);
+    let [p, it, people] = await get();
+    if (join && !p.error && !p.data && (await sb.rpc("join_trip", { tid: planId })).data) [p, it, people] = await get(); // A3 이전 옛 링크(주인 없는 trip)
     if (p.error || it.error || !p.data) throw p.error || it.error || new Error("없는 일정");
     const n = Math.max(2, ...it.data.map((i) => i.day + 1));
+    s.people = people.data ?? [];
     s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip,
       days: Array.from({ length: n }, (_, d) => ({ day: `${d + 1}일차`,
         items: it.data.filter((i) => i.day === d).map(({ id, time, what }) => ({ id, time, what })).sort(byTime) })) };
@@ -178,12 +180,12 @@ export default function Plan() {
   async function invite() {
     const plan = s.plan;
     if (!(await save())) return;
-    if (!plan.shared) {
-      const { error } = await sb.from("trips").update({ shared: true }).eq("id", plan.id);
-      if (error) { s.note = "공유 실패: " + error.message; return render(); }
-      plan.shared = true; savePlan();
-    }
-    const url = location.origin + "/plan/" + plan.id;
+    const token = hex(16); // 누를 때마다 새 링크 (7일 뒤 만료)
+    const { error } = await sb.from("invites").insert({ token, trip_id: plan.id });
+    const res = error ? { error } : plan.shared ? {} : await sb.from("trips").update({ shared: true }).eq("id", plan.id);
+    if (res.error) { s.note = "초대 실패: " + res.error.message; return render(); }
+    plan.shared = true; savePlan();
+    const url = location.origin + "/invite/" + token;
     if (navigator.share) return navigator.share({ title: plan.title, text: "같이 여행 일정 고치자!", url }).catch(() => {});
     try { await navigator.clipboard.writeText(url); s.note = "링크 복사됨 · 친구에게 보내세요"; render(); }
     catch { prompt("이 링크를 친구에게 보내세요", url); }
@@ -200,6 +202,15 @@ export default function Plan() {
         <input id="planTitle" className="title" aria-label="여행 제목" value={plan?.title ?? region?.name ?? ""}
           onChange={(e) => { if (!plan) return; plan.title = e.target.value; s.titleDirty = true; savePlan(); queueFlush(); render(); }} />
         <p className="note" id="planNote">{note}</p>
+        {plan?.id && s.people?.length > 1 && (
+          <ul className="people" aria-label="같이 고치는 사람">
+            {s.people.map((m) => (
+              <li key={m.user_id} title={m.nickname + (m.role === "owner" ? " (만든 사람)" : "")}>
+                {m.avatar_url ? <img src={m.avatar_url} alt={m.nickname} referrerPolicy="no-referrer" /> : <span aria-label={m.nickname}>{[...(m.nickname || "?")][0]}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
         {!plan ? (
           <div id="planBody" className={s.missing ? "" : "loading"}>
             {s.missing === "login" ? <>로그인하면 이 일정을 볼 수 있어요. <a href={"/login?next=" + encodeURIComponent(location.pathname)}>로그인</a></>

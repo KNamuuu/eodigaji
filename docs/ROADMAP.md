@@ -16,7 +16,7 @@
 ## 1. 지금 상태 (2026-10-11)
 
 - Vite + React (`src/`, A1에서 전환) — 지도 룰렛·다트 뽑기, 일정 편집, 링크 초대 공동 편집
-- Supabase: `trips`·`trip_members`·`items`·`profiles`. **로그인 + 멤버 = 권한** (A3). 초대는 임시로 공유한 trip id (A4에서 토큰으로)
+- Supabase: `trips`·`trip_members`·`items`·`profiles`. **로그인 + 멤버 = 권한** (A3). 초대는 7일짜리 토큰 링크 (A4)
 - AI 일정(`api/plan.js`)은 키가 없어 한 번도 실제로 호출하지 못함 → 샘플 일정으로 대체 중
 - 배포: Vercel (GitHub 푸시 자동 배포)
 
@@ -124,9 +124,10 @@ RLS 원칙: trips/items는 멤버만, posts는 `is_public or 작성자 or 같은
   - 결과 (2026-10-11): `trips`·`trip_members` + RLS(멤버만). 옛 `plans` 7건은 `shared=true` trip으로 옮김(`plans`는 백업으로 잠금). [이 일정 저장] · [친구 초대], `/me` 목록(상단 이름 누르면). 초대는 A4 전까지 임시로 "공유한 trip id = 초대"(`join_trip()`, 로그인 필요). `a3.mjs` 통과(테스트 계정 a3-a·a3-b@eodigaji.test), `auth.mjs` 회귀 통과. `collab.mjs`는 로그인 전제라 A4에서 갱신
   - 훅: "링크만 알면 다 보이던 걸, 내 것만 보이게"
 
-- [ ] **A4. 친구 초대 v2**
+- [x] **A4. 친구 초대 v2**
   - 할 일: `invites` 토큰 링크 → 받은 사람 로그인 → 멤버 등록. 일정 위에 멤버 아바타. 실시간 편집 유지
   - 완료 기준: 두 계정으로 초대·수락·동시 편집 (`collab.mjs` 갱신해서 통과)
+  - 결과 (2026-10-11): `invites`(토큰 32자·7일 만료, 멤버만 생성) → `/invite/:token` → 비로그인이면 로그인 → `accept_invite()` → 일정. 아바타는 `trip_people()`, 새 멤버가 들어오면 broadcast로 다른 화면 갱신. trip id만으로는 못 들어옴(`join_trip`은 주인 없는 옛 링크 7건만). `collab.mjs`·`a3.mjs`·`auth.mjs` 통과
   - 훅: "친구 초대 링크 누르면 일어나는 일"
 
 ### Phase B — 뽑기 보강

@@ -134,3 +134,46 @@ begin
 end $$;
 revoke execute on function public.join_trip(text) from public, anon;
 grant execute on function public.join_trip(text) to authenticated;
+
+-- A4 친구 초대 v2: 초대 토큰(7일) → 로그인 → accept_invite()로 멤버. trip id만 알아서는 못 들어온다
+create table if not exists public.invites (
+  token text primary key check (length(token) >= 16),
+  trip_id text not null references public.trips(id) on delete cascade,
+  created_by uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  expires_at timestamptz not null default now() + interval '7 days'
+);
+alter table public.invites enable row level security;
+drop policy if exists invite_create on public.invites;
+create policy invite_create on public.invites for insert to authenticated
+  with check (public.is_member(trip_id) and created_by = (select auth.uid()) and expires_at <= now() + interval '7 days');
+
+create or replace function public.accept_invite(tok text) returns text
+language plpgsql security definer set search_path = '' as $$
+declare tid text;
+begin
+  select trip_id into tid from public.invites where token = tok and expires_at > now();
+  if auth.uid() is null or tid is null then return null; end if;
+  insert into public.trip_members (trip_id, user_id) values (tid, auth.uid()) on conflict do nothing;
+  return tid;
+end $$;
+revoke execute on function public.accept_invite(text) from public, anon;
+grant execute on function public.accept_invite(text) to authenticated;
+
+-- 옛 링크(A3 이전 plans에서 옮겨온, 주인 없는 trip)만 id로 들어올 수 있다
+-- ponytail: 옛 링크 7건 호환용. 다 정리되면 join_trip을 지운다
+create or replace function public.join_trip(tid text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null or not exists (select 1 from public.trips where id = tid and owner_id is null) then return false; end if;
+  insert into public.trip_members (trip_id, user_id) values (tid, auth.uid()) on conflict do nothing;
+  return true;
+end $$;
+
+-- 일정 위 멤버 아바타: 같은 trip 멤버의 이름·사진 (내가 멤버일 때만)
+create or replace function public.trip_people(tid text) returns table (user_id uuid, nickname text, avatar_url text, role text)
+language sql stable security definer set search_path = '' as $$
+  select m.user_id, p.nickname, p.avatar_url, m.role from public.trip_members m left join public.profiles p on p.id = m.user_id
+  where m.trip_id = tid and public.is_member(tid) order by m.role = 'owner' desc, p.nickname
+$$;
+revoke execute on function public.trip_people(text) from public, anon;
+grant execute on function public.trip_people(text) to authenticated;

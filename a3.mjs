@@ -83,16 +83,14 @@ await until(async () => (await bp.textContent("#planBody")).includes("찾을 수
 await out.goto(B + "/plan/" + id);
 await until(async () => (await out.textContent("#planBody")).includes("로그인하면"), "비로그인 안내 없음");
 
-// 6. A가 [친구 초대] → B가 링크로 들어와 멤버가 됨 (A4 전까지 임시: 공유한 trip id = 초대)
+// 6. A가 [친구 초대]해도 trip id만으로는 못 들어옴 (초대 토큰이 있어야 함 → collab.mjs)
 await a.goto(B + "/plan/" + id); await a.waitForSelector("#planBody .row");
 await a.click("#invite");
-await until(async () => /같이 고치는 중|복사/.test(await a.textContent("#planNote")), "초대 안 됨");
-await bp.goto(B + "/plan/" + id); await bp.waitForSelector("#planBody .row");
-assert.deepEqual(await whats(bp), saved);
-await bp.locator(".what").nth(0).fill("B가 고친 일정");
-await bp.locator("#planTitle").focus();
-await until(async () => (await whats(a))[0] === "B가 고친 일정", "B 수정이 A에 안 옴");
-await bp.screenshot({ path: `${dir}/mobile-5-friend.png`, fullPage: true });
+await until(async () => /복사/.test(await a.textContent("#planNote")), "초대 안 됨");
+assert.match(await a.evaluate(() => navigator.clipboard.readText()), /\/invite\/[0-9a-f]{32}$/);
+assert.equal((await Bu.c.rpc("join_trip", { tid: id })).data, false);
+await bp.goto(B + "/plan/" + id);
+await until(async () => (await bp.textContent("#planBody")).includes("찾을 수 없어요"), "공유한 trip이 id만으로 열림");
 
 for (const p of [out, a, pc, bp]) assert.deepEqual(p.errs, []);
 await A.c.from("trips").delete().eq("id", id); // 정리
