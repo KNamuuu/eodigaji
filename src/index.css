@@ -90,7 +90,7 @@ a.who { font-weight: 600; color: var(--color-accent); }
 @media (min-width: 768px) { #status { top: var(--space-lg); left: var(--space-lg); max-width: 320px; } }
 
 /* ── 패널 ── */
-.tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--color-rule); }
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border-bottom: 1px solid var(--color-rule); }
 .tabs button { padding: var(--space-sm) 0; font-size: 15px; font-weight: 600; color: var(--color-ink-2); box-shadow: inset 0 -2px 0 transparent; transition: color .12s, box-shadow .12s; }
 .tabs button.active { color: var(--color-ink); box-shadow: inset 0 -2px 0 var(--color-accent); }
 @media (hover: hover) { .tabs button:not(.active):hover { color: var(--color-ink); } }
@@ -118,6 +118,35 @@ a.who { font-weight: 600; color: var(--color-accent); }
 .chips button:disabled { opacity: .5; cursor: default; }
 .check { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-sm); font-size: 14px; }
 .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); }
+
+/* ── 카드 3장 (B3): 위치는 .card, 뒤집기는 .card-in. transform·opacity만 움직인다 ── */
+.deck { --gap: var(--space-sm); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--gap); margin-top: var(--space-lg); padding: var(--space-md) 0 var(--space-xl); }
+.card { --stack: calc(-1 * var(--o) * (100% + var(--gap))); /* 가운데로 모으는 거리 */
+  aspect-ratio: 2 / 3; padding: 0; perspective: 700px; border-radius: var(--radius);
+  transform: rotate(calc(var(--o) * 4deg)) translateY(calc(var(--o) * var(--o) * 6px)); /* 부채꼴 */
+  transition: transform .35s var(--ease-out) calc(var(--k) * .1s), opacity .35s var(--ease-out); }
+.deck[data-phase="shuffle"] .card { transform: translateX(var(--stack)); animation: shuffle .4s var(--ease-out) 2; }
+.card:nth-child(2) { --d: 1; } .card:nth-child(odd) { --d: -1; } .card:nth-child(3) { --d: 1.4; }
+@keyframes shuffle {
+  0%, 100% { transform: translateX(var(--stack)); }
+  40% { transform: translateX(calc(var(--stack) + var(--d) * 45%)) rotate(calc(var(--d) * 7deg)); }
+}
+.deck[data-chosen] .card { transition-delay: 0s; }
+.card[data-state="chosen"] { z-index: 1; transform: translateX(var(--stack)) scale(1.12); }
+.card[data-state="dropped"] { opacity: .3; transform: rotate(calc(var(--o) * 4deg)) translateY(16px) scale(.9); }
+.card-in { position: relative; display: block; height: 100%; transform-style: preserve-3d; transition: transform .5s var(--ease-out); }
+.card[data-open] .card-in { transform: rotateY(180deg); }
+.face { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2xs); border-radius: var(--radius); -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.face.back { background: var(--color-accent); }
+.face.back svg { width: 45%; height: 60%; fill: none; stroke: var(--color-paper); stroke-width: .8; stroke-linejoin: round; }
+.face.front { transform: rotateY(180deg); padding: var(--space-sm) var(--space-xs); background: var(--color-paper); box-shadow: inset 0 0 0 1px var(--color-rule); white-space: normal; }
+.card[data-state="chosen"] .face.front { box-shadow: inset 0 0 0 2px var(--color-accent); }
+.face.front svg { width: 70%; height: 45%; margin-bottom: var(--space-xs); overflow: visible; }
+.face.front path { fill: var(--color-accent-soft); stroke: var(--color-accent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.face.front b { font-size: 16px; letter-spacing: -.02em; }
+.face.front small { font-size: 12px; color: var(--color-ink-2); }
+.card:disabled { cursor: default; }
+@media (hover: hover) { .card:not([data-open]):not(:disabled):hover .face.back { background: var(--color-accent-hover); } }
 
 /* ── 일정 ── */
 .back { display: inline-flex; align-items: center; gap: var(--space-2xs); margin: 0 0 var(--space-sm) calc(-1 * var(--space-xs)); padding: var(--space-xs); font-size: 14px; color: var(--color-ink-2); border-radius: var(--radius); }
@@ -155,6 +184,7 @@ button.add { margin-top: var(--space-2xs); padding: var(--space-xs) 0; font-size
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; }
   #planBody.loading { animation: none; }
+  .card { transition-delay: 0s !important; animation: none !important; }
   .btn:active:not(:disabled) { transform: none; }
 }
 

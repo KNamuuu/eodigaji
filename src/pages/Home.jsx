@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import Dart, { ZONE_H } from "../components/Dart.jsx";
+import Cards from "../components/Cards.jsx";
 import { useRegions } from "../regions.js";
 import { sb, useSession } from "../supabase.js";
 
 const HELP = {
   roulette: "버튼을 누르면 지도 위를 빠르게 돌다가 한 곳에 멈춰요.",
+  cards: "카드 3장을 섞어 펼쳐요. 하나씩 뒤집어 보고 갈 곳을 골라요.",
   dart: "지도 어디서든 누른 채 아래로 당겼다 놓으면 다트가 날아가요. 점선 원이 떨어질 곳이에요 — 바람만큼 밀려요.",
 };
 const pickedStatus = (r) => [r.name, `${r.prov} · 여기로 결정!`];
@@ -49,7 +51,7 @@ export default function Home() {
   }
   function setMode(m) {
     setModeState(m); setPicked(null); setRound((n) => n + 1);
-    if (m === "roulette") setStatus(idleStatus);
+    if (m !== "dart") setStatus(m === "cards" ? ["3장 중에 골라요", "뒤집기 전엔 어딘지 몰라요"] : idleStatus);
   }
 
   // ── 지도 룰렛: 빠르게 깜빡이다 점점 느려지며 멈춤 ──
@@ -82,7 +84,7 @@ export default function Home() {
     <Layout view="home" map={map} status={status}>
       <section id="home" className="screen">
         <div className="tabs" role="tablist">
-          {[["roulette", "지도 룰렛"], ["dart", "다트"]].map(([m, label]) => (
+          {[["roulette", "지도 룰렛"], ["dart", "다트"], ["cards", "카드"]].map(([m, label]) => (
             <button key={m} data-mode={m} className={mode === m ? "active" : undefined} role="tab" onClick={() => !busy && setMode(m)}>{label}</button>
           ))}
         </div>
@@ -102,6 +104,7 @@ export default function Home() {
         <div className="result desk" id="result">
           {picked ? <><p className="prov">{picked.prov}</p><p className="name">{picked.name}</p></> : <p className="empty">아직 고른 곳이 없어요</p>}
         </div>
+        {data && mode === "cards" && <Cards key={round} data={data} out={out} pathsRef={pathsRef} setBusy={setBusy} setStatus={setStatus} onPick={choose} />}
         <button id="go" ref={goRef} className="btn" hidden={!picked} onClick={() => nav("/plan?r=" + picked.id)}>여기로 1박 2일 일정 짜기</button>
         <button id="spin" className={picked ? "btn sub" : "btn"} hidden={mode !== "roulette"} disabled={busy || !left} onClick={spin}>{spun ? "다시 돌리기" : "룰렛 돌리기"}</button>
         {data && !left && <p className="note">남은 곳이 없어요. 필터를 풀어주세요</p>}

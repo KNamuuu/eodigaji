@@ -14,5 +14,12 @@
   "theme": "Hum",
   "enrichment": "none",
   "brief": "어디가지 · 지도 룰렛/다트로 여행지 뽑고 일정 공동 편집"
+ },
+ {
+  "date": "2026-10-11",
+  "macrostructure": "Workbench",
+  "theme": "custom",
+  "enrichment": "none",
+  "brief": "어디가지 · B3 카드 3장 뽑기 (패널 안 카드 3장, 토큰 색만)"
  }
 ]
