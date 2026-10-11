@@ -19,8 +19,16 @@ for (const [tag, width, height] of [["mobile", 390, 844], ["pc", 1280, 800]]) {
   });
   await page.goto(BASE);
   await page.waitForSelector("#regions path");
+  // 0) 처음 열면 안내 모달 → "다시 보지 않기" + 알겠어요 → 새로고침해도 안 뜸
+  await page.click("[data-mode=dart]");
+  await page.waitForSelector("dialog.guide[open]");
+  await page.screenshot({ path: `${dir}/${tag}-0-guide.png` });
+  await page.check("dialog.guide input[type=checkbox]");
+  await page.click("dialog.guide button:text('알겠어요')");
+  await page.reload(); await page.waitForSelector("#regions path");
   await page.click("[data-mode=dart]");
   await page.waitForSelector("#dart");
+  assert.equal(await page.$("dialog.guide[open]"), null, "다시 보지 않기인데 또 뜸");
 
   // 화면 좌표 ↔ SVG 좌표
   const toScreen = (x, y) => page.evaluate(([x, y]) => {
@@ -38,11 +46,11 @@ for (const [tag, width, height] of [["mobile", 390, 844], ["pc", 1280, 800]]) {
     if (release) await page.mouse.up();
   }
 
-  // 1) 손가락이 화면 밖으로 → pointercancel: 조준선·링이 남으면 안 됨
+  // 1) 손가락이 화면 밖으로 → pointercancel: 게이지가 남으면 안 됨
   await pull([REST[0], REST[1] + 10], [REST[0] + 15, REST[1] + 70], { release: false, shotName: "1-aiming" });
-  assert.equal(await page.isVisible("#aim"), true);
+  assert.equal(await page.isVisible("#gauge"), true);
   await page.evaluate(() => document.querySelector("#map").dispatchEvent(new PointerEvent("pointercancel", { pointerId: 1, bubbles: true })));
-  for (const sel of ["#aim", "#target", "#ring", "#band"]) assert.equal(await page.isHidden(sel), true, sel + " 남음");
+  assert.equal(await page.isHidden("#gauge"), true, "게이지 남음");
   await page.mouse.up();
 
   // 2) 목표 맞히기

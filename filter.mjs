@@ -11,6 +11,7 @@ fs.mkdirSync(dir, { recursive: true });
 const browser = await chromium.launch();
 const open = async (width, { session, clock } = {}) => {
   const ctx = await browser.newContext({ viewport: { width, height: width > 500 ? 800 : 844 }, deviceScaleFactor: 2 });
+  await ctx.addInitScript(() => localStorage.setItem("dartGuideOff", "1")); // 다트 안내 모달은 dart.mjs에서 본다
   if (session) await ctx.addInitScript((s) => localStorage.setItem("sb-ltbhffozitpbsxjbnbnd-auth-token", JSON.stringify(s)), session);
   const page = await ctx.newPage();
   page.errs = []; page.on("pageerror", (e) => page.errs.push(e.message));
