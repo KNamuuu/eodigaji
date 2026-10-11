@@ -14,13 +14,13 @@ function reachPerSpeed(power) {
 }
 
 export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPick, outRef }) {
-  const dartRef = useRef(), flightsRef = useRef(), shadowRef = useRef(), aimRef = useRef(), targetRef = useRef(),
+  const dartRef = useRef(), flightsRef = useRef(), shadowRef = useRef(), targetRef = useRef(),
     ringRef = useRef(), bandRef = useRef(), hintRef = useRef(), rippleRef = useRef();
   const MAP_H = data.h, REST = { x: 200, y: MAP_H + 46 };
   const FAR = REST.y - 10; // 힘 100% = 지도 맨 위
 
   useEffect(() => {
-    const svg = svgRef.current, aimL = aimRef.current, target = targetRef.current, ring = ringRef.current, band = bandRef.current;
+    const svg = svgRef.current, target = targetRef.current, ring = ringRef.current, band = bandRef.current;
     let aim = null, wind = { x: 0, y: 0 }, windStatus, busy = false;
     const show = (el, on) => on ? el.removeAttribute("hidden") : el.setAttribute("hidden", ""); // SVG 요소는 .hidden 속성이 없음
     const set = (el, attrs) => { for (const k in attrs) el.setAttribute(k, attrs[k]); };
@@ -40,7 +40,7 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       set(shadow, { cx: x, cy: y, rx: 5 + z / 25, opacity: z > 0 ? Math.max(0.08, 0.3 - z / 1500) : 0 });
     }
     function resetDart() {
-      [aimL, target, ring, band].forEach((el) => show(el, false));
+      [target, ring, band].forEach((el) => show(el, false));
       show(hintRef.current, true);
       dartRef.current.removeAttribute("visibility");
       drawDart(REST.x, REST.y);
@@ -79,15 +79,15 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
       const pulled = len >= MIN_PULL;
       if (pulled) {
         const tx = REST.x + Math.cos(a) * reach(power), ty = REST.y + Math.sin(a) * reach(power);
-        set(aimL, { x1: bx, y1: by, x2: tx, y2: ty }); set(target, { cx: tx, cy: ty });
+        set(target, { cx: tx, cy: ty });
       }
-      show(aimL, pulled); show(target, pulled);
+      show(target, pulled);
       setStatus(pulled ? [`힘 ${Math.round(power * 100)}%`, "놓으면 날아가요"] : windStatus);
     }
     function up() {
       if (!aim) return;
       const pull = aim; aim = null;
-      [aimL, target, ring, band].forEach((el) => show(el, false));
+      [target, ring, band].forEach((el) => show(el, false));
       const len = Math.hypot(pull.x, pull.y);
       if (len < MIN_PULL) { resetDart(); setStatus(windStatus); return; }
       throwDart(pull, len / MAX_PULL);
@@ -176,7 +176,6 @@ export default function Dart({ svgRef, pathsRef, data, setBusy, setStatus, onPic
     <g className="dartLayer">
       <circle ref={rippleRef} className="ripple" r="2" hidden />
       <circle ref={targetRef} id="target" r="8" strokeDasharray="3 3" hidden />
-      <line ref={aimRef} id="aim" strokeWidth="2" strokeDasharray="6 5" hidden />
       <line ref={bandRef} id="band" strokeWidth="1.5" hidden />
       <circle ref={ringRef} id="ring" r="9" hidden />
       <ellipse ref={shadowRef} id="shadow" rx="6" ry="3" opacity="0" />

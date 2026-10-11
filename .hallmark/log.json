@@ -35,5 +35,12 @@
   "theme": "custom",
   "enrichment": "none",
   "brief": "어디가지 · C2 내 지도 색칠 + 미리보기 카드 (상태창 자리, --color-visited 토큰 추가)"
+ },
+ {
+  "date": "2026-10-11",
+  "macrostructure": "Workbench",
+  "theme": "custom",
+  "enrichment": "none",
+  "brief": "어디가지 · C3 지역 피드 (지역 확대 지도, 내 기록 사진 격자 + 크게 보기 dialog, 수정·삭제)"
  }
 ]
