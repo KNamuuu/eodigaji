@@ -86,7 +86,9 @@ await until(async () => (await out.textContent("#planBody")).includes("로그인
 // 6. A가 [친구 초대]해도 trip id만으로는 못 들어옴 (초대 토큰이 있어야 함 → collab.mjs)
 await a.goto(B + "/plan/" + id); await a.waitForSelector("#planBody .row");
 await a.click("#invite");
-await until(async () => /복사/.test(await a.textContent("#planNote")), "초대 안 됨");
+await a.click('.sheet[open] [data-share="copy"]'); // 초대 → 공유 시트 → 링크 복사
+await until(async () => /복사했어요/.test(await a.textContent(".sheet .note")), "초대 안 됨");
+await a.click(".sheet .btn.sub");
 assert.match(await a.evaluate(() => navigator.clipboard.readText()), /\/invite\/[0-9a-f]{32}$/);
 assert.equal((await Bu.c.rpc("join_trip", { tid: id })).data, false);
 await bp.goto(B + "/plan/" + id);

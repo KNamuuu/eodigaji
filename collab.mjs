@@ -38,7 +38,9 @@ await a.click("#spin"); await a.waitForSelector("#go:not([hidden])", { timeout: 
 await a.click("#go"); await a.waitForSelector("#planBody .row");
 await a.fill("#planTitle", "친구랑 가는 여행");
 await a.click("#invite");
-await until(async () => /복사/.test(await a.textContent("#planNote")), "초대 링크가 안 생김");
+await a.click('.sheet [data-share="copy"]'); // 공유 시트 → 링크 복사
+await until(async () => /복사했어요/.test(await a.textContent(".sheet .note")), "초대 링크가 안 생김");
+await a.click(".sheet .btn.sub");
 const link = await a.evaluate(() => navigator.clipboard.readText());
 assert.match(link, /\/invite\/[0-9a-f]{32}$/);
 const id = a.url().split("/plan/")[1];

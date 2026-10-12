@@ -291,7 +291,7 @@ create policy photo_read on storage.objects for select to authenticated
 -- 대표사진: 여행 멤버가 고른 사진 경로 (그 여행 기록의 사진). 내 지도에서 그 지역을 이 사진으로 채움
 alter table public.trips add column if not exists cover text;
 
--- D5 남의 일정 보기: trip을 공개하면(is_public, 기본 false) 로그인 사용자 누구나 그 trip·일정(items)을 읽기만 한다. 쓰기는 여전히 멤버만
+-- D5 남의 일정 보기: trip을 공개하면(is_public, 기본 false) 로그인 사용자 누구나 읽기만 한다 (D6에서 테이블 공개 읽기 → public_trips() RPC로 바꿈)
 -- 그래서 "내 여행" 목록들은 이제 RLS만 믿지 않고 trip_members!inner로 내가 멤버인 것만 고른다 (Me·Home·Region)
 -- 신고는 D1 reports를 같이 쓴다 (post_id 또는 trip_id 하나). 3건이면 trips.hidden → 공개 목록에서 빠짐. 작성자 이름은 어디에도 안 내보냄
 alter table public.trips add column if not exists is_public boolean not null default false;
@@ -328,3 +328,122 @@ begin
   end if;
   return null;
 end $$;
+
+-- D6 다듬기 묶음
+-- (1) 공개 일정은 public_trips() RPC로만 읽는다 → owner_id 등 작성자를 알 수 있는 값이 API로 안 나감. D5의 테이블 공개 읽기 정책은 걷어낸다
+drop policy if exists trip_public_read on public.trips;
+drop policy if exists items_public_read on public.items;
+create or replace function public.is_public_trip(tid text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.trips where id = tid and is_public and not hidden)
+$$;
+revoke execute on function public.is_public_trip(text) from public, anon;
+grant execute on function public.is_public_trip(text) to authenticated;
+
+-- 따라 짜기(copied_from)·좋아요·가는 날
+alter table public.trips add column if not exists copied_from text references public.trips(id) on delete set null;
+alter table public.trips add column if not exists start_on date;
+grant update (title, tip, shared, status, done_on, cover, is_public, start_on) on public.trips to authenticated;
+drop policy if exists trip_create on public.trips;
+create policy trip_create on public.trips for insert to authenticated
+  with check (owner_id = (select auth.uid()) and (copied_from is null or public.is_public_trip(copied_from))); -- 아무 trip에나 "따라 짬" 숫자를 못 올리게
+create table if not exists public.trip_likes (
+  trip_id text not null references public.trips(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  primary key (trip_id, user_id)
+);
+alter table public.trip_likes enable row level security;
+drop policy if exists like_self on public.trip_likes;
+create policy like_self on public.trip_likes for select to authenticated using (user_id = (select auth.uid()));
+drop policy if exists like_create on public.trip_likes;
+create policy like_create on public.trip_likes for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.is_public_trip(trip_id) and not public.is_member(trip_id));
+drop policy if exists like_delete on public.trip_likes;
+create policy like_delete on public.trip_likes for delete to authenticated using (user_id = (select auth.uid()));
+
+-- 지역의 공개 일정 (내가 멤버인 건 빼고) 또는 p_id 하나. sort = 'hot'(좋아요 + 따라 짬×2) | 'new'
+drop function if exists public.public_trips(text, text, text, int, text);
+create or replace function public.public_trips(p_prov text, p_place text, sort text default 'hot', lim int default 30, p_id text default null)
+returns table (id text, prov text, place text, title text, tip text, done_on date, items jsonb, likes int, copies int, liked boolean)
+language sql stable security definer set search_path = '' as $$
+  select id, prov, place, title, tip, done_on, items, likes, copies, liked from (
+    select t.id, t.prov, t.place, t.title, t.tip, t.done_on, t.created_at,
+      coalesce((select jsonb_agg(jsonb_build_object('day', i.day, 'time', i.time, 'what', i.what)) from public.items i where i.trip_id = t.id), '[]') items,
+      (select count(*) from public.trip_likes l where l.trip_id = t.id)::int likes,
+      (select count(*) from public.trips c where c.copied_from = t.id)::int copies,
+      exists (select 1 from public.trip_likes l where l.trip_id = t.id and l.user_id = (select auth.uid())) liked
+    from public.trips t
+    where (select auth.uid()) is not null and t.is_public and not t.hidden
+      and (case when p_id is null then t.prov = p_prov and t.place = p_place and not public.is_member(t.id) else t.id = p_id end)
+  ) x
+  order by case when sort = 'hot' then likes + 2 * copies end desc nulls last, done_on desc nulls last, created_at desc
+  limit least(lim, 200)
+$$;
+revoke execute on function public.public_trips(text, text, text, int, text) from public, anon;
+grant execute on function public.public_trips(text, text, text, int, text) to authenticated;
+
+-- 신고: 공개 여부는 definer 함수로 (테이블 공개 읽기를 걷어냈으므로)
+drop policy if exists report_create on public.reports;
+create policy report_create on public.reports for insert to authenticated
+  with check (user_id = (select auth.uid()) and (
+    exists (select 1 from public.posts p where p.id = post_id and p.is_public and not p.hidden and p.user_id <> (select auth.uid()))
+    or (trip_id is not null and public.is_public_trip(trip_id) and not public.is_member(trip_id))));
+
+-- (3) 신고 관리: admins에 든 사람만. 넣는 건 SQL로만 (insert into public.admins select id from auth.users where email = '...')
+create table if not exists public.admins (user_id uuid primary key references auth.users(id) on delete cascade);
+alter table public.admins enable row level security; -- 정책 없음 = API로 못 읽고 못 씀
+create or replace function public.is_admin() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.admins where user_id = (select auth.uid()))
+$$;
+revoke execute on function public.is_admin() from public, anon;
+grant execute on function public.is_admin() to authenticated;
+
+create or replace function public.admin_reports()
+returns table (kind text, id text, hidden boolean, n int, reasons text[], title text, body text, prov text, place text, photos text[], last timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'admin only'; end if;
+  return query
+    select * from (
+      select 'post'::text, p.id::text, p.hidden, count(*)::int, array_agg(r.reason), ''::text, p.body, p.prov, p.place, p.photos, max(r.created_at)
+        from public.reports r join public.posts p on p.id = r.post_id group by p.id
+      union all
+      select 'trip', t.id, t.hidden, count(*)::int, array_agg(r.reason), t.title, ''::text, t.prov, t.place, '{}'::text[], max(r.created_at)
+        from public.reports r join public.trips t on t.id = r.trip_id group by t.id
+    ) x order by 11 desc limit 200;
+end $$;
+revoke execute on function public.admin_reports() from public, anon;
+grant execute on function public.admin_reports() to authenticated;
+
+-- restore = 숨김 풀고 신고 지움, delete = 지움 (기록 사진은 관리 화면이 Storage에서 먼저 지움)
+create or replace function public.admin_resolve(kind text, tid text, action text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'admin only'; end if;
+  if kind = 'post' and action = 'restore' then
+    update public.posts set hidden = false where id = tid::uuid; delete from public.reports where post_id = tid::uuid;
+  elsif kind = 'post' and action = 'delete' then delete from public.posts where id = tid::uuid;
+  elsif kind = 'trip' and action = 'restore' then
+    update public.trips set hidden = false where id = tid; delete from public.reports where trip_id = tid;
+  elsif kind = 'trip' and action = 'delete' then update public.trips set is_public = false, hidden = false where id = tid; delete from public.reports where trip_id = tid; -- 남의 일정 자체는 안 지우고 공개만 내림
+  else raise exception 'bad action'; end if;
+end $$;
+revoke execute on function public.admin_resolve(text, text, text) from public, anon;
+grant execute on function public.admin_resolve(text, text, text) to authenticated;
+
+-- 관리자는 숨겨진 기록·사진도 봄 (검토용), 지운 기록의 사진을 지움
+drop policy if exists post_read on public.posts;
+create policy post_read on public.posts for select to authenticated
+  using ((is_public and not hidden) or user_id = (select auth.uid()) or public.is_member(trip_id) or public.is_admin());
+
+-- (성능) 사진 읽기: 폴더 이름(post id)을 uuid로 바꿔 posts pk 인덱스를 탄다. uuid 모양이 아니면 null → 캐스트 에러 없음
+drop policy if exists photo_read on storage.objects;
+create policy photo_read on storage.objects for select to authenticated
+  using (bucket_id = 'photos' and ((storage.foldername(name))[1] = (select auth.uid())::text
+    or exists (select 1 from public.posts p where p.id = case when (storage.foldername(objects.name))[2] ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then ((storage.foldername(objects.name))[2])::uuid end)
+    or public.is_admin()));
+drop policy if exists photo_delete on storage.objects;
+create policy photo_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'photos' and ((storage.foldername(name))[1] = (select auth.uid())::text or public.is_admin()));

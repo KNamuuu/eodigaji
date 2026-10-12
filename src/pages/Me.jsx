@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
-import KoreaMap, { usePanZoom } from "../components/KoreaMap.jsx";
+import KoreaMap, { usePanZoom, ZoomButtons } from "../components/KoreaMap.jsx";
 import { shrink } from "../components/Record.jsx";
 import { useRegions, thumbOf } from "../regions.js";
-import { sb, useSession } from "../supabase.js";
+import { sb, useSession, useResign } from "../supabase.js";
 import { drawCard } from "../share.js";
+import ShareSheet from "../components/Share.jsx";
+import { dday } from "./Plan.jsx";
 
 // 내 지도: 다녀온 곳을 대표사진으로 채우기(사진 없으면 색) + 내 여행 목록. 휠·핀치·드래그로 확대·이동
 // 칠한 곳: PC는 마우스 올리면, 폰은 첫 탭에, 키보드는 포커스에 미리보기(이름·날짜·대표사진) → 클릭·두 번째 탭·Enter로 지역 피드
 export default function Me() {
-  const data = useRegions(), session = useSession(), uid = session?.user.id, go = useNavigate();
+  const data = useRegions(), session = useSession(), uid = session?.user.id, go = useNavigate(), resign = useResign();
   const [trips, setTrips] = useState(null), [err, setErr] = useState(""), [photo, setPhoto] = useState({}), [peek, setPeek] = useState(null);
   useEffect(() => {
     if (!uid) return;
-    sb.from("trips").select("id, prov, place, title, shared, status, done_on, cover, created_at, trip_members!inner(user_id)").order("created_at", { ascending: false }) // 내가 멤버인 것만 (공개 일정은 RLS로 남도 읽힘 → inner join으로 거름)
+    sb.from("trips").select("id, prov, place, title, shared, status, done_on, start_on, cover, created_at, trip_members!inner(user_id)").order("created_at", { ascending: false }) // 내가 멤버인 것만 (공개 일정은 RLS로 남도 읽힘 → inner join으로 거름)
       .then(({ data, error }) => { setTrips(data); setErr(error ? "불러오기 실패: " + error.message : ""); });
   }, [uid]);
 
@@ -59,7 +61,7 @@ export default function Me() {
       }
       setPhoto(Object.fromEntries([...first].map(([i, p]) => [i, url[thumbOf(p)]]).filter(([, u]) => u)));
     });
-  }, [visited]);
+  }, [visited, resign]);
 
   // 정복 지도 카드: 미리 PNG를 만들어 둠 (Safari는 share()가 눌린 순간에 바로 불려야 해서 누른 뒤에 그리면 막힘)
   const [card, setCard] = useState(null);
@@ -69,10 +71,11 @@ export default function Me() {
     drawCard(data, new Set(visited.keys()), photo).then((b) => { url = URL.createObjectURL(b); setCard({ url, file: new File([b], "eodigaji-map.png", { type: "image/png" }) }); });
     return () => url && URL.revokeObjectURL(url);
   }, [data, visited, photo]);
-  const canShare = card && navigator.canShare?.({ files: [card.file] });
+  const [sharing, setSharing] = useState(false);
 
   // 계정 삭제: 사진(photos/{내 id}/{기록}/…)부터 Storage API로 지우고 → delete_me()가 계정·기록을 지움 (같이 쓰던 trip은 남은 멤버에게)
-  const [bye, setBye] = useState("");
+  const [bye, setBye] = useState(""), [admin, setAdmin] = useState(false);
+  useEffect(() => { if (uid) sb.rpc("is_admin").then(({ data }) => setAdmin(!!data)); }, [uid]);
   async function deleteMe() {
     if (!confirm("계정을 지울까요? 내 기록과 사진이 모두 지워지고 되돌릴 수 없어요. 친구와 같이 쓰던 여행은 친구에게 넘어가요.")) return;
     setBye("지우는 중…");
@@ -104,15 +107,15 @@ export default function Me() {
     };
   };
 
-  const svg = useRef(), [view, reset] = usePanZoom(svg, data?.w, data?.h);
+  const svg = useRef(), pz = usePanZoom(svg, data?.w, data?.h);
   const r = peek !== null && data?.regions[peek], v = r && visited.get(peek);
   const status = v ? [r.name, <>{r.prov} · 다녀옴 {v.date}{v.n > 1 && ` · ${v.n}번`}{photo[peek] && <img src={photo[peek]} alt="" />}</>]
     : ["내 지도", trips && visited.size ? `${data?.regions.length ?? 167}곳 중 ${visited.size}곳 다녀왔어요` : "다녀온 곳이 여기 칠해져요"];
 
   return (
     <Layout view="me" status={status} map={<>
-      <KoreaMap data={data} svgRef={svg} view={view} visited={new Set(visited.keys())} photos={photo} picked={r || null} regionProps={regionProps} />
-      {view && <button id="fit" className="btn sub" onClick={reset}>전체 보기</button>}
+      <KoreaMap data={data} svgRef={svg} view={pz.view} visited={new Set(visited.keys())} photos={photo} picked={r || null} regionProps={regionProps} />
+      {data && <ZoomButtons pz={pz} />}
     </>}>
       <section id="me" className="screen">
         <h2 className="title">내 여행</h2>
@@ -123,15 +126,16 @@ export default function Me() {
           : <>
             {visited.size > 0 && <p className="help">칠해진 곳에 마우스를 올리거나 한 번 누르면 미리보기, 한 번 더 누르면 그 지역 기록으로 가요. 지도는 휠·두 손가락으로 확대, 끌어서 이동해요.</p>}
             <ul className="trips">{trips.map((t) => (
-              <li key={t.id}><Link to={"/plan/" + t.id}><b>{t.title || t.place}</b><small>{t.prov} {t.place}{t.status === "done" ? ` · 다녀옴 ${t.done_on}` : t.shared ? " · 같이 고치는 중" : ""}</small></Link></li>
+              <li key={t.id}><Link to={"/plan/" + t.id}><b>{t.title || t.place}</b><small>{t.prov} {t.place}{t.status === "done" ? ` · 다녀옴 ${t.done_on}` : t.shared ? " · 같이 고치는 중" : ""}{t.status !== "done" && t.start_on && dday(t.start_on) ? ` · ${dday(t.start_on)}` : ""}</small></Link></li>
             ))}</ul>
             {card && <div id="card">
               <h2 className="title">정복 지도 카드</h2>
               <img src={card.url} alt={`${data.regions.length}곳 중 ${visited.size}곳 다녀온 내 지도`} />
-              {canShare && <button className="btn" onClick={() => navigator.share({ files: [card.file], title: "어디가지 · 내 정복 지도" }).catch(() => {})}>공유하기</button>}
-              <a className={canShare ? "btn sub" : "btn"} href={card.url} download="eodigaji-map.png">이미지 저장</a>
+              <button className="btn" onClick={() => setSharing(true)}>공유하기</button>
+              <ShareSheet open={sharing} onClose={() => setSharing(false)} title="어디가지 · 내 정복 지도" text={`${data.regions.length}곳 중 ${visited.size}곳 다녀왔어요`} file={card.file} fileName="eodigaji-map.png" />
             </div>}
           </>}
+        {admin && <p className="help"><Link to="/admin">신고 관리</Link></p>}
         {session && <details id="bye">
           <summary>계정 삭제</summary>
           <p className="help">내 기록·사진·신고 내역이 바로 지워지고 되돌릴 수 없어요. 친구와 같이 쓰던 여행은 남은 친구에게 넘어가요. <Link to="/privacy">개인정보 처리방침</Link> · <Link to="/terms">이용약관</Link></p>

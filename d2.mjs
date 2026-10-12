@@ -46,18 +46,21 @@ try {
     assert.notEqual(r.seoul, r.busan, "칠한 곳·안 칠한 곳 색이 같음");
     assert.ok(r.shown <= width - 32 && r.scroll <= width, "카드가 화면을 넘침");
 
-    // 저장: PNG 다운로드 (IHDR 1080×1350)
-    const [dl] = await Promise.all([p.waitForEvent("download"), p.click("#card a")]);
+    // [공유하기] → 공유 시트 → 이미지 저장: PNG 다운로드 (IHDR 1080×1350)
+    await p.click('#card button:text("공유하기")');
+    await p.waitForSelector(".sheet[open]");
+    if (mobile) { await p.waitForTimeout(400); await p.screenshot({ path: `${dir}/mobile-sheet.png` }); } // 올라오는 애니메이션 끝난 뒤
+    const [dl] = await Promise.all([p.waitForEvent("download"), p.click('.sheet [data-share="save"]')]);
     const png = fs.readFileSync(await dl.path());
     assert.equal(png.toString("ascii", 1, 4), "PNG");
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [1080, 1350]);
     fs.writeFileSync(`${dir}/card-${tag}.png`, png);
 
-    // 공유: Web Share 있으면 [공유하기] → 파일 1장, 없으면 버튼 없음
+    // [다른 앱]: Web Share 있으면 파일 1장, 없으면 버튼 없음
     if (mobile) {
-      await p.click('#card button:text("공유하기")');
+      await p.click('.sheet [data-share="more"]');
       assert.deepEqual(await p.evaluate(() => ({ n: shared.n, type: shared.type })), { n: 1, type: "image/png" });
-    } else assert.equal(await p.$('#card button'), null, "Web Share 없는데 공유 버튼이 보임");
+    } else { assert.equal(await p.$('.sheet [data-share="more"]'), null, "Web Share 없는데 [다른 앱]이 보임"); await p.click(".sheet .btn.sub"); }
 
     await p.locator("#card").scrollIntoViewIfNeeded();
     await p.screenshot({ path: `${dir}/${tag}-me.png`, fullPage: mobile });

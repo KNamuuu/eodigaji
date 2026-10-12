@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { sb } from "../supabase.js";
+import { sb, useResign } from "../supabase.js";
 import { thumbOf } from "../regions.js";
 
 // C1 다녀옴 + 기록: [다녀왔어요] → 날짜 · 사진 여러 장 · 한 줄 · 공개 여부 → 저장
@@ -21,12 +21,15 @@ export async function shrink(file, max = MAX) {
   return webp?.type === "image/webp" ? webp : enc("image/jpeg", 0.85); // Safari는 webp를 못 만들어 PNG를 준다 → JPEG로
 }
 
-// 기록마다 사진 서명 URL(1시간)을 붙인다
+// 기록마다 사진 서명 URL(1시간)을 붙인다: urls = 원본(크게 볼 때), thumbs = 썸네일(격자). D4 전 사진은 썸네일이 없을 수 있어 원본으로
 export async function withUrls(posts) {
-  const paths = (posts ?? []).flatMap((p) => p.photos);
-  const signed = paths.length ? (await sb.storage.from("photos").createSignedUrls(paths, 3600)).data ?? [] : [];
-  const url = Object.fromEntries(signed.map((s) => [s.path, s.signedUrl]));
-  return (posts ?? []).map((p) => ({ ...p, urls: p.photos.map((x) => url[x]).filter(Boolean) }));
+  const paths = (posts ?? []).flatMap((p) => p.photos), all = [...paths, ...paths.map(thumbOf)];
+  const signed = paths.length ? (await sb.storage.from("photos").createSignedUrls(all, 3600)).data ?? [] : [];
+  const url = Object.fromEntries(signed.filter((s) => s.signedUrl).map((s) => [s.path, s.signedUrl]));
+  return (posts ?? []).map((p) => {
+    const ok = p.photos.filter((x) => url[x]);
+    return { ...p, urls: ok.map((x) => url[x]), thumbs: ok.map((x) => url[thumbOf(x)] ?? url[x]), shown: ok };
+  });
 }
 
 export const REASONS = [["spam", "광고·도배"], ["abuse", "욕설·불쾌"], ["privacy", "개인정보 노출"], ["etc", "기타"]];
@@ -69,7 +72,7 @@ export function Posts({ posts, uid, reload, all }) {
         {posts.map((p) => (
           <li key={p.id} data-post={p.id}>
             {p.urls.length > 0 && <div className="photos">{p.urls.map((u, i) => (
-              <button key={i} type="button" onClick={() => show(u, p.photos[i], p)} aria-label={`사진 ${i + 1} 크게 보기`}><img src={u} alt="" loading="lazy" /></button>
+              <button key={i} type="button" onClick={() => show(u, p.shown[i], p)} aria-label={`사진 ${i + 1} 크게 보기`}><img src={p.thumbs[i]} alt="" loading="lazy" /></button>
             ))}</div>}
             {edit?.id === p.id ? (
               <form className="edit" onSubmit={save}>
@@ -116,7 +119,8 @@ export default function Record({ plan, uid, onChange }) {
     const { data } = await sb.from("posts").select().eq("trip_id", plan.id).order("created_at", { ascending: false });
     setPosts(await withUrls(data));
   }
-  useEffect(() => { load(); }, [plan.id]);
+  const resign = useResign();
+  useEffect(() => { load(); }, [plan.id, resign]);
 
   async function submit(e) {
     e.preventDefault();

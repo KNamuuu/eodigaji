@@ -31,11 +31,13 @@ ok(await A.c.from("items").insert([
   { trip_id: pub, day: 1, time: "09:00", what: "D5 안목해변 커피" }, { trip_id: priv, day: 0, time: "11:00", what: "D5 비밀 장소" },
 ]));
 
-// API: b는 공개만 읽음
-const seen = ok(await Bu.c.from("trips").select("id").in("id", [pub, priv])).map((t) => t.id);
-assert.deepEqual(seen, [pub], "비공개 trip이 읽힘");
-assert.deepEqual(ok(await Bu.c.from("items").select("id").eq("trip_id", priv)), [], "비공개 items가 읽힘");
-assert.equal(ok(await Bu.c.from("items").select("id").eq("trip_id", pub)).length, 3);
+// API: b는 공개만, 그것도 public_trips RPC로만 (테이블로는 남의 trip·items가 아예 안 읽힘 → owner_id 안 샘)
+assert.deepEqual(ok(await Bu.c.from("trips").select("id").in("id", [pub, priv])), [], "남의 trip이 테이블로 읽힘");
+assert.deepEqual(ok(await Bu.c.from("items").select("id").in("trip_id", [pub, priv])), [], "남의 items가 테이블로 읽힘");
+const rows = ok(await Bu.c.rpc("public_trips", { p_prov: "강원", p_place: "강릉시" })).filter((t) => [pub, priv].includes(t.id));
+assert.deepEqual(rows.map((t) => t.id), [pub], "비공개 일정이 RPC로 읽힘");
+assert.equal(rows[0].items.length, 3);
+assert.ok(!("owner_id" in rows[0]), "RPC가 owner_id를 내보냄");
 ok(await Bu.c.from("trips").update({ title: "D5 남이 고침" }).eq("id", pub)); // RLS: 0행
 ok(await Bu.c.from("items").update({ what: "D5 남이 고침" }).eq("trip_id", pub));
 assert.equal(ok(await A.c.from("trips").select("title").eq("id", pub).single()).title, "D5 강릉 바다 1박", "남이 trip을 고침");
@@ -88,7 +90,7 @@ try {
   await p.waitForSelector(`[data-trip="${pub}"]`);
   assert.equal(await p.$(`[data-trip="${mineId}"]`), null, "내 복사본이 남의 일정에 보임");
   await p.click(`[data-trip="${pub}"] > button`);
-  await p.click(`[data-trip="${pub}"] .acts button:text("신고")`);
+  await p.click(`[data-trip="${pub}"] .acts button:text("일정 신고")`);
   await p.click(`[data-trip="${pub}"] [data-reason="spam"]`);
   await p.waitForSelector(`[data-trip="${pub}"] .acts small`);
   assert.equal(ok(await Bu.c.from("reports").select("reason").eq("trip_id", pub)).length, 1);

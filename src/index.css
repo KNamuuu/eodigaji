@@ -76,7 +76,9 @@ a.who { font-weight: 600; color: var(--color-accent); }
 #map path.photo.picked { stroke: var(--color-accent); stroke-width: 2; }
 #map #photos { pointer-events: none; }
 [data-view="me"] #map path { vector-effect: non-scaling-stroke; } /* 확대해도 경계선 굵기 그대로 */
-#fit { position: absolute; top: var(--space-sm); right: var(--space-sm); width: auto; height: 40px; margin: 0; padding: 0 var(--space-md); }
+.zoom { position: absolute; top: var(--space-sm); right: var(--space-sm); display: flex; gap: var(--space-2xs); }
+.zoom .btn { width: auto; min-width: 40px; height: 40px; margin: 0; padding: 0 var(--space-sm); font-size: 15px; }
+.zoom button[aria-label] { font-size: 20px; font-weight: 500; }
 #map path[tabindex] { outline: none; -webkit-tap-highlight-color: transparent; }
 #map path[tabindex]:focus-visible { stroke: var(--color-ink); stroke-width: 1.5; }
 #status img { display: block; width: 160px; aspect-ratio: 4 / 3; margin-top: var(--space-xs); object-fit: cover; border-radius: var(--radius); }
@@ -275,3 +277,35 @@ h2.title { margin: 0; }
 .others .acts { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-xs); }
 .others .acts button { padding: var(--space-2xs) 0; font-size: 13px; color: var(--color-ink-2); text-decoration: underline; text-underline-offset: 3px; }
 .others .acts span { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+/* 공유 시트: 아래에서 올라오는 모달 */
+.sheet { position: fixed; inset: auto 0 0; width: 100%; max-width: 480px; margin: 0 auto; padding: var(--space-lg) var(--space-md) max(var(--space-md), env(safe-area-inset-bottom)); border: 0; border-radius: var(--radius-map) var(--radius-map) 0 0; background: var(--color-paper); color: var(--color-ink); }
+.sheet::backdrop { background: oklch(0% 0 0 / .4); }
+.sheet[open] { animation: sheet-up .22s var(--ease-out); }
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheet[open] { animation: none; } }
+.sheet h2 { margin: 0; font-size: 16px; }
+.share-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-xs); margin-top: var(--space-md); }
+.share-btns > * { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: 13px; color: var(--color-ink); text-decoration: none; white-space: nowrap; }
+.share-btns span { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--color-paper-2); }
+.share-btns span.kakao { background: var(--color-kakao); color: var(--color-kakao-ink); }
+.btn.more { margin-top: var(--space-md); }
+.sort { display: flex; gap: var(--space-sm); margin-top: var(--space-md); }
+.sort button { padding: var(--space-2xs) var(--space-sm); font-size: 13px; color: var(--color-ink-2); border-radius: 99px; box-shadow: inset 0 0 0 1px var(--color-rule); }
+.sort button[aria-pressed="true"] { color: var(--color-paper); background: var(--color-ink); box-shadow: none; }
+.others .ro p span { flex: 1; }
+.maplink { display: grid; place-items: center; width: 32px; height: 32px; flex: none; margin: -6px 0; color: var(--color-ink-2); border-radius: var(--radius); }
+@media (hover: hover) { .maplink:hover { color: var(--color-accent); background: var(--color-paper-2); } }
+.ro .pair, .plan-ro .pair { display: grid; grid-template-columns: 1fr auto; gap: var(--space-xs); }
+.btn.like { width: auto; min-width: 72px; }
+.btn.like.on { color: var(--color-accent); }
+.when { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); font-size: 14px; color: var(--color-ink-2); }
+.when label { display: flex; align-items: center; gap: var(--space-xs); }
+.when input { font: inherit; font-size: 16px; color: var(--color-ink); background: none; border: 1px solid var(--color-rule); border-radius: var(--radius); padding: var(--space-2xs) var(--space-xs); }
+.when b { color: var(--color-accent); }
+.when .add { margin: 0; }
+.plan-ro .ro p { display: flex; gap: var(--space-sm); align-items: center; margin: var(--space-2xs) 0 0; font-size: 15px; }
+.plan-ro .ro p b { flex: 0 0 3.2em; font-weight: 600; color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.plan-ro .ro p span { flex: 1; }
+.plan-ro .acts { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-md); }
+.plan-ro .acts button { padding: var(--space-2xs) 0; font-size: 13px; color: var(--color-ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.others .ro p { align-items: center; }

@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { SB_URL, SB_KEY } from "./src/supabase.js";
+import { thumbOf } from "./src/regions.js";
 
 const B = process.env.BASE || "http://localhost:4173", dir = "shots/C1", tmp = fs.mkdtempSync(path.join(os.tmpdir(), "c1-"));
 fs.mkdirSync(dir, { recursive: true });
@@ -118,7 +119,7 @@ assert.match(await pc.textContent(`.trips a[href="/plan/${id}"]`), /다녀옴 20
 await pc.screenshot({ path: `${dir}/pc-4-me.png` });
 
 for (const p of [a, pc]) assert.deepEqual(p.errs, []);
-assert.ifError((await A.c.storage.from("photos").remove(post.photos)).error); // 정리
+assert.ifError((await A.c.storage.from("photos").remove([...post.photos, ...post.photos.map(thumbOf)])).error); // 정리 (D4 썸네일까지)
 await A.c.from("trips").delete().eq("id", id);
 assert.equal((await A.c.storage.from("photos").list(`${A.session.user.id}/${post.id}`)).data.length, 0);
 await browser.close();

@@ -4,6 +4,8 @@ import { sb, useSession } from "../supabase.js";
 import Layout from "../components/Layout.jsx";
 import KoreaMap from "../components/KoreaMap.jsx";
 import Record from "../components/Record.jsx";
+import ShareSheet from "../components/Share.jsx";
+import PublicTrip, { mapLink, MapPin } from "../components/PublicTrip.jsx";
 import { useRegions } from "../regions.js";
 
 // ── 저장·같이 고치기: 로그인한 사용자의 trip (Supabase) ──
@@ -13,6 +15,24 @@ import { useRegions } from "../regions.js";
 const byTime = (a, b) => (a.time || "99").localeCompare(b.time || "99");
 const hex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
 const uuid = () => hex(16).replace(/(.{8})(.{4})(.{4})(.{4})/, "$1-$2-$3-$4-");
+
+// 캘린더 파일(.ics): 가는 날부터 n일차 = +n일. 시간 있는 항목은 다음 항목까지(없으면 1시간), 시간 없는 항목은 그날 종일
+// 시간대 없이(floating) 적어서 폰 시간대 그대로 들어간다 (국내 여행이라 충분)
+function ics(plan) {
+  const esc = (t) => String(t).replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  const day = (d) => { const t = new Date(plan.start_on + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + d); return t.toISOString().slice(0, 10).replaceAll("-", ""); };
+  const hm = (x) => /^\d{1,2}:\d{2}$/.test(x) ? x.padStart(5, "0").replace(":", "") + "00" : null;
+  const ev = plan.days.flatMap((d, di) => d.items.filter((it) => it.what).map((it, k, all) => {
+    const st = hm(it.time), next = all.slice(k + 1).map((x) => hm(x.time)).find(Boolean);
+    const end = st && (next && next > st ? next : String(Math.min(23, +st.slice(0, 2) + 1)).padStart(2, "0") + st.slice(2));
+    return ["BEGIN:VEVENT", `UID:${it.id}@eodigaji`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d+/g, "")}`,
+      st ? `DTSTART:${day(di)}T${st}` : `DTSTART;VALUE=DATE:${day(di)}`, st ? `DTEND:${day(di)}T${end}` : `DTEND;VALUE=DATE:${day(di + 1)}`,
+      `SUMMARY:${esc(it.what)}`, `LOCATION:${esc(plan.prov + " " + plan.place)}`, "END:VEVENT"];
+  }));
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//eodigaji//KO", `X-WR-CALNAME:${esc(plan.title)}`, ...ev, "END:VCALENDAR"].join("\r\n");
+}
+const dday = (d) => { const n = Math.round((new Date(d + "T00:00:00") - new Date(new Date().toDateString())) / 864e5); return n > 0 ? `D-${n}` : n === 0 ? "D-day" : null; };
+export { dday };
 
 function samplePlan(place) {
   return {
@@ -66,7 +86,7 @@ export default function Plan() {
     if (p.error || it.error || !p.data) throw p.error || it.error || new Error("없는 일정");
     const n = Math.max(2, ...it.data.map((i) => i.day + 1));
     s.people = people.data ?? [];
-    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip, status: p.data.status, done_on: p.data.done_on, is_public: p.data.is_public,
+    s.plan = { id: planId, shared: p.data.shared, prov: p.data.prov, place: p.data.place, title: p.data.title, tip: p.data.tip, status: p.data.status, done_on: p.data.done_on, is_public: p.data.is_public, hidden: p.data.hidden, start_on: p.data.start_on,
       days: Array.from({ length: n }, (_, d) => ({ day: `${d + 1}일차`,
         items: it.data.filter((i) => i.day === d).map(({ id, time, what }) => ({ id, time, what })).sort(byTime) })) };
     s.stale = false;
@@ -95,12 +115,18 @@ export default function Plan() {
   useEffect(() => {
     if (!data || session === undefined) return;
     let dead = false;
-    s.plan = null; s.missing = null; rerender();
+    s.plan = null; s.missing = null; s.pub = null; rerender();
     (async () => {
       if (id) {
         if (!uid) { s.missing = "login"; return render(); }
         connect(id);
-        try { await loadShared(id, true); } catch { if (!dead) { s.missing = "gone"; render(); } return; }
+        try { await loadShared(id, true); } catch {
+          disconnect();
+          const { data: pub } = await sb.rpc("public_trips", { p_prov: "", p_place: "", p_id: id }); // 멤버가 아니면: 공개 일정이면 읽기 전용으로
+          if (dead) return;
+          if (pub?.[0]) { const { data: rep } = await sb.from("reports").select("trip_id").eq("trip_id", id); s.pub = { ...pub[0], reported: !!rep?.length }; } else s.missing = "gone";
+          return render();
+        }
       } else {
         const region = data.regions[r];
         if (!region) return nav("/", { replace: true });
@@ -186,14 +212,34 @@ export default function Plan() {
     const res = error ? { error } : plan.shared ? {} : await sb.from("trips").update({ shared: true }).eq("id", plan.id);
     if (res.error) { s.note = "초대 실패: " + res.error.message; return render(); }
     plan.shared = true; savePlan();
-    const url = location.origin + "/invite/" + token;
-    if (navigator.share) return navigator.share({ title: plan.title, text: "같이 여행 일정 고치자!", url }).catch(() => {});
-    try { await navigator.clipboard.writeText(url); s.note = "링크 복사됨 · 친구에게 보내세요"; render(); }
-    catch { prompt("이 링크를 친구에게 보내세요", url); }
+    s.inviteUrl = location.origin + "/invite/" + token; render(); // 공유 시트 (카카오톡·링크 복사·다른 앱)
+  }
+  async function setStart(v) {
+    s.plan.start_on = v || null; savePlan(); render();
+    const { error } = await sb.from("trips").update({ start_on: v || null }).eq("id", s.plan.id);
+    if (error) { s.note = "날짜 저장 실패: " + error.message; render(); } else synced({});
+  }
+  function saveIcs() {
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([ics(s.plan)], { type: "text/calendar" })), download: (s.plan.title || s.plan.place) + ".ics" });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  const plan = s.plan;
-  const region = data && (plan ? data.regions.find((x) => x.prov === plan.prov && x.name === plan.place) : data.regions[r]);
+  const plan = s.plan, at = plan ?? s.pub;
+  const region = data && (at ? data.regions.find((x) => x.prov === at.prov && x.name === at.place) : data.regions[r]);
+
+  if (s.pub) return ( // 남의 공개 일정: 읽기 전용
+    <Layout view="plan" map={<KoreaMap data={data} picked={region} />} status={region && [region.name, `${region.prov} · 다른 사람 일정`]}>
+      <section id="plan" className="screen plan-ro">
+        <button className="back" onClick={() => nav(region ? "/region/" + region.id : "/")}>← {region ? region.name + " 둘러보기" : "처음으로"}</button>
+        <h2 className="title" id="planTitle">{s.pub.title || s.pub.place}</h2>
+        <p className="note" id="planNote">다른 사람이 공개한 일정 · 읽기 전용이에요. 고치려면 [이 일정으로 짜기]</p>
+        <PublicTrip t={s.pub} uid={uid} reload={async () => {
+          const [{ data: pub }, { data: rep }] = await Promise.all([sb.rpc("public_trips", { p_prov: "", p_place: "", p_id: s.pub.id }), sb.from("reports").select("trip_id").eq("trip_id", s.pub.id)]);
+          if (pub?.[0]) { s.pub = { ...pub[0], reported: !!rep?.length }; render(); }
+        }} />
+      </section>
+    </Layout>
+  );
   const note = s.note ?? (plan ? (plan.shared ? "같이 고치는 중 · " : plan.id ? "저장됨 · " : plan.sample ? "샘플 일정 · " : "") + "눌러서 바로 고칠 수 있어요" : "");
 
   return (
@@ -203,6 +249,12 @@ export default function Plan() {
         <input id="planTitle" className="title" aria-label="여행 제목" value={plan?.title ?? region?.name ?? ""}
           onChange={(e) => { if (!plan) return; plan.title = e.target.value; s.titleDirty = true; savePlan(); queueFlush(); render(); }} />
         <p className="note" id="planNote">{note}</p>
+        {plan?.hidden && <p className="note" role="alert">신고가 쌓여 이 일정이 공개 목록에서 숨겨졌어요. 운영자가 확인한 뒤 다시 보이거나 비공개로 바뀌어요.</p>}
+        {plan?.id && <div className="when">
+          <label>가는 날<input type="date" name="start" value={plan.start_on ?? ""} onChange={(e) => setStart(e.target.value)} /></label>
+          {plan.start_on && dday(plan.start_on) && <b>{dday(plan.start_on)}</b>}
+          {plan.start_on && <button type="button" className="add" id="ics" onClick={saveIcs}>캘린더에 넣기 (.ics)</button>}
+        </div>}
         {plan?.id && s.people?.length > 1 && (
           <ul className="people" aria-label="같이 고치는 사람">
             {s.people.map((m) => (
@@ -228,17 +280,19 @@ export default function Plan() {
                       onChange={(e) => edit(it, "time", e.target.value)} onBlur={() => sortDay(di)} />
                     <input className="what" placeholder="할 일" aria-label="할 일" data-id={it.id} value={it.what ?? ""}
                       onChange={(e) => edit(it, "what", e.target.value)} />
+                    {it.what && <a className="maplink" href={mapLink(`${plan.place} ${it.what}`)} target="_blank" rel="noopener" aria-label={`${it.what} 지도에서 찾기`}><MapPin /></a>}
                     <button data-del={`${di},${i}`} aria-label="삭제" onClick={() => del(di, i)}>✕</button>
                   </div>
                 ))}
                 <button className="add" data-add={di} onClick={() => add(di)}>+ 일정 추가</button>
               </section>
             ))}
-            <p className="tip">{plan.tip}</p>
+            {plan.tip && <p className="tip">{plan.tip}</p>}
           </div>
         )}
         <button id="save" className="btn" hidden={!plan || !!plan.id} onClick={save}>이 일정 저장</button>
         <button id="invite" className={plan?.id ? "btn" : "btn sub"} hidden={!plan} onClick={invite}>{plan?.shared ? "초대 링크 다시 보내기" : "친구 초대"}</button>
+        <ShareSheet open={!!s.inviteUrl} onClose={() => { s.inviteUrl = null; render(); }} title="같이 여행 일정 고치자!" text={`${plan?.title ?? ""} · 이 링크로 들어오면 같이 고칠 수 있어요 (7일)`} url={s.inviteUrl} />
         {plan?.id && uid && <Record plan={plan} uid={uid} onChange={(v) => { Object.assign(plan, v); savePlan(); render(); }} />}
       </section>
     </Layout>
